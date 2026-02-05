@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:recharts.org)",
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(python3:*)",
+      "Bash(curl:*)",
+      "Bash(__NEW_LINE_ef54cdd966c55af4__ echo \"\")",
+      "Bash(__NEW_LINE_87e967aec2057d2d__ echo \"\")",
+      "Bash(npx:*)",
+      "Bash(while read id)",
+      "Bash(do curl -s -X DELETE \"http://localhost:3001/api/transactions/$id\")",
+      "Bash(done)",
+      "Bash(__NEW_LINE_8137c6f07d0ba26e__ curl -s http://localhost:3001/api/portfolios/3/transactions)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)",
+      "Bash(__NEW_LINE_2bcec9e03fb33df5__ echo \"\")",
+      "Bash(# Create portfolios and transactions curl -s -X POST http://localhost:3001/api/portfolios -H ''Content-Type: application/json'' -d ''{\"\"name\"\":\"\"Tech Growth\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios -H ''Content-Type: application/json'' -d ''{\"\"name\"\":\"\"Dividend Income\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/1/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"AAPL\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":20,\"\"price\"\":175.50,\"\"date\"\":\"\"2025-06-01\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/1/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"NVDA\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":15,\"\"price\"\":120.00,\"\"date\"\":\"\"2025-06-01\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/1/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"MSFT\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":10,\"\"price\"\":420.00,\"\"date\"\":\"\"2025-06-15\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/1/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"AAPL\"\",\"\"type\"\":\"\"sell\"\",\"\"shares\"\":5,\"\"price\"\":195.00,\"\"date\"\":\"\"2025-09-01\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/2/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"JNJ\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":30,\"\"price\"\":155.00,\"\"date\"\":\"\"2025-06-01\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/2/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"KO\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":50,\"\"price\"\":62.00,\"\"date\"\":\"\"2025-06-01\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/2/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"PG\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":25,\"\"price\"\":165.00,\"\"date\"\":\"\"2025-07-01\"\"}'' echo \"\"Seeded!\"\" && echo \"\"\"\" echo \"\"=== Tech Growth detail ===\"\" && curl -s \"\"http://localhost:3001/api/portfolios/1\"\")",
+      "Bash(__NEW_LINE_e255c2271358a16d__ echo \"\")",
+      "Bash(__NEW_LINE_9df14f21ae3524d3__ echo \"\")",
+      "Bash(git -C /home/mdolton/dev/portfolio-comparator status -u)"
+    ]
+  }
+}
