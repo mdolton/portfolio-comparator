@@ -35,7 +35,7 @@ export function PerformanceChart({ data, portfolios, selectedIds, loading }: Pro
   return (
     <ResponsiveContainer width="100%" height={400}>
       <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
         <XAxis
           dataKey="date"
           tick={{ fontSize: 12 }}

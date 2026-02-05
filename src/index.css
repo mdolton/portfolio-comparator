@@ -9,9 +9,34 @@
   --danger: #ef4444;
   --danger-hover: #dc2626;
   --success: #22c55e;
+  --success-bg: #dcfce7;
+  --success-text: #166534;
+  --danger-bg: #fee2e2;
+  --danger-text: #991b1b;
   --radius: 8px;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --chart-grid: #e2e8f0;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f172a;
+  --bg-card: #1e293b;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border: #334155;
+  --primary: #818cf8;
+  --primary-hover: #6366f1;
+  --danger: #f87171;
+  --danger-hover: #ef4444;
+  --success: #4ade80;
+  --success-bg: #14532d;
+  --success-text: #86efac;
+  --danger-bg: #450a0a;
+  --danger-text: #fca5a5;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --chart-grid: #334155;
 }
 
 *,
@@ -121,9 +146,9 @@ select:focus {
 }
 
 .error-message {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  color: var(--danger-text);
   padding: 0.75rem 1rem;
   border-radius: var(--radius);
   margin-bottom: 1rem;

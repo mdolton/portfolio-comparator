@@ -50,7 +50,7 @@ export function TickerSearchInput({ value, onChange }: Props) {
             top: '100%',
             left: 0,
             right: 0,
-            background: '#fff',
+            background: 'var(--bg-card)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius)',
             boxShadow: 'var(--shadow-lg)',

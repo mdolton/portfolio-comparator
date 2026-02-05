@@ -42,8 +42,8 @@ export function TransactionTable({ transactions, onDelete }: Props) {
                     borderRadius: 12,
                     fontSize: '0.75rem',
                     fontWeight: 600,
-                    background: tx.type === 'buy' ? '#dcfce7' : '#fee2e2',
-                    color: tx.type === 'buy' ? '#166534' : '#991b1b',
+                    background: tx.type === 'buy' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                    color: tx.type === 'buy' ? 'var(--success-text)' : 'var(--danger-text)',
                   }}
                 >
                   {tx.type.toUpperCase()}
