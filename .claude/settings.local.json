@@ -24,7 +24,19 @@
       "Bash(# Create portfolios and transactions curl -s -X POST http://localhost:3001/api/portfolios -H ''Content-Type: application/json'' -d ''{\"\"name\"\":\"\"Tech Growth\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios -H ''Content-Type: application/json'' -d ''{\"\"name\"\":\"\"Dividend Income\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/1/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"AAPL\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":20,\"\"price\"\":175.50,\"\"date\"\":\"\"2025-06-01\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/1/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"NVDA\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":15,\"\"price\"\":120.00,\"\"date\"\":\"\"2025-06-01\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/1/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"MSFT\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":10,\"\"price\"\":420.00,\"\"date\"\":\"\"2025-06-15\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/1/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"AAPL\"\",\"\"type\"\":\"\"sell\"\",\"\"shares\"\":5,\"\"price\"\":195.00,\"\"date\"\":\"\"2025-09-01\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/2/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"JNJ\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":30,\"\"price\"\":155.00,\"\"date\"\":\"\"2025-06-01\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/2/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"KO\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":50,\"\"price\"\":62.00,\"\"date\"\":\"\"2025-06-01\"\"}'' curl -s -X POST http://localhost:3001/api/portfolios/2/transactions -H ''Content-Type: application/json'' -d ''{\"\"ticker\"\":\"\"PG\"\",\"\"type\"\":\"\"buy\"\",\"\"shares\"\":25,\"\"price\"\":165.00,\"\"date\"\":\"\"2025-07-01\"\"}'' echo \"\"Seeded!\"\" && echo \"\"\"\" echo \"\"=== Tech Growth detail ===\"\" && curl -s \"\"http://localhost:3001/api/portfolios/1\"\")",
       "Bash(__NEW_LINE_e255c2271358a16d__ echo \"\")",
       "Bash(__NEW_LINE_9df14f21ae3524d3__ echo \"\")",
-      "Bash(git -C /home/mdolton/dev/portfolio-comparator status -u)"
+      "Bash(git -C /home/mdolton/dev/portfolio-comparator status -u)",
+      "Bash(tree:*)",
+      "Bash(du -sh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint:*)",
+      "Bash(git stash:*)",
+      "Bash(xdg-open:*)",
+      "Bash(node --version:*)",
+      "Bash(docker compose up:*)",
+      "Bash(pkill:*)"
     ]
   }
 }

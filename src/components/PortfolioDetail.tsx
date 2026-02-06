@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { usePortfolioDetail } from '../hooks/usePortfolios';
 import { useTransactions } from '../hooks/useTransactions';
@@ -10,12 +11,31 @@ interface Props {
 }
 
 export function PortfolioDetail({ portfolioId }: Props) {
-  const { portfolio, loading: pLoading, error: pError, refetch: refetchPortfolio } = usePortfolioDetail(portfolioId);
+  const { portfolio, loading: pLoading, error: pError, refetch: refetchPortfolio, updatePortfolio } = usePortfolioDetail(portfolioId);
   const { transactions, loading: tLoading, error: tError, addTransaction, deleteTransaction } = useTransactions(portfolioId);
+  const [notes, setNotes] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+
+  useEffect(() => {
+    if (portfolio) {
+      setNotes(portfolio.notes || '');
+    }
+  }, [portfolio]);
 
   if (pLoading) return <div className="loading">Loading portfolio...</div>;
   if (pError) return <div className="error-message">{pError}</div>;
   if (!portfolio) return <div className="error-message">Portfolio not found</div>;
+
+  const handleNotesBlur = async () => {
+    if (notes !== (portfolio.notes || '')) {
+      setNotesSaving(true);
+      try {
+        await updatePortfolio({ notes });
+      } finally {
+        setNotesSaving(false);
+      }
+    }
+  };
 
   return (
     <div>
@@ -23,7 +43,29 @@ export function PortfolioDetail({ portfolioId }: Props) {
         <Link to="/portfolios" style={{ fontSize: '0.875rem' }}>&larr; Back to Portfolios</Link>
       </div>
 
-      <h2 style={{ marginBottom: '1rem' }}>{portfolio.name}</h2>
+      <h2 style={{ marginBottom: '0.5rem' }}>{portfolio.name}</h2>
+
+      <div style={{ marginBottom: '1rem' }}>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={handleNotesBlur}
+          placeholder="Add notes about this portfolio..."
+          style={{
+            width: '100%',
+            minHeight: '60px',
+            padding: '0.5rem',
+            borderRadius: '4px',
+            border: '1px solid var(--border)',
+            background: 'var(--bg-secondary)',
+            color: 'var(--text)',
+            resize: 'vertical',
+            fontFamily: 'inherit',
+            fontSize: '0.875rem',
+          }}
+        />
+        {notesSaving && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Saving...</span>}
+      </div>
 
       <HoldingsSummary
         holdings={portfolio.holdings}

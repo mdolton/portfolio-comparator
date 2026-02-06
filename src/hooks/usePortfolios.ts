@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
-import type { Portfolio, PortfolioWithHoldings, CreatePortfolioRequest } from '@shared/types';
+import type { Portfolio, PortfolioWithHoldings, CreatePortfolioRequest, UpdatePortfolioRequest } from '@shared/types';
 
 export function usePortfolios() {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
@@ -61,5 +61,11 @@ export function usePortfolioDetail(id: number | null) {
     fetchPortfolio();
   }, [fetchPortfolio]);
 
-  return { portfolio, loading, error, refetch: fetchPortfolio };
+  const updatePortfolio = async (data: UpdatePortfolioRequest): Promise<void> => {
+    if (id === null) return;
+    await api.patch<Portfolio>(`/portfolios/${id}`, data);
+    await fetchPortfolio();
+  };
+
+  return { portfolio, loading, error, refetch: fetchPortfolio, updatePortfolio };
 }

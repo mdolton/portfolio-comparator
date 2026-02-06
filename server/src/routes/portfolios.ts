@@ -57,6 +57,17 @@ router.post('/', (req, res) => {
   }
 });
 
+router.patch('/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { notes } = req.body;
+
+  const existing = portfolioService.getPortfolioById(id);
+  if (!existing) throw new AppError(404, 'Portfolio not found');
+
+  const portfolio = portfolioService.updatePortfolio(id, { notes });
+  res.json(portfolio);
+});
+
 router.delete('/:id', (req, res) => {
   const id = parseInt(req.params.id);
   const deleted = portfolioService.deletePortfolio(id);

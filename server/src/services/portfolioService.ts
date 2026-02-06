@@ -19,3 +19,10 @@ export function deletePortfolio(id: number): boolean {
   const result = db.prepare('DELETE FROM portfolios WHERE id = ?').run(id);
   return result.changes > 0;
 }
+
+export function updatePortfolio(id: number, updates: { notes?: string }): Portfolio | undefined {
+  if (updates.notes !== undefined) {
+    db.prepare('UPDATE portfolios SET notes = ? WHERE id = ?').run(updates.notes, id);
+  }
+  return getPortfolioById(id);
+}

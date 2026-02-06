@@ -14,6 +14,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS portfolios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
+    notes TEXT DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -37,5 +38,12 @@ db.exec(`
     PRIMARY KEY (ticker, date)
   );
 `);
+
+// Migration: add notes column to existing databases
+try {
+  db.exec(`ALTER TABLE portfolios ADD COLUMN notes TEXT DEFAULT ''`);
+} catch {
+  // Column already exists
+}
 
 export default db;

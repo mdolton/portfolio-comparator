@@ -1,6 +1,7 @@
 export interface Portfolio {
   id: number;
   name: string;
+  notes: string;
   created_at: string;
 }
 
@@ -54,6 +55,10 @@ export interface PerformancePoint {
 
 export interface CreatePortfolioRequest {
   name: string;
+}
+
+export interface UpdatePortfolioRequest {
+  notes?: string;
 }
 
 export interface CreateTransactionRequest {
