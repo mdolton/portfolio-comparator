@@ -51,7 +51,14 @@ export function HoldingsSummary({ holdings, totalValue, totalCost }: Props) {
                 <td>{formatShares(h.shares)}</td>
                 <td>{formatCurrency(h.avgCost)}</td>
                 <td>{formatCurrency(h.currentPrice)}</td>
-                <td>{formatCurrency(h.marketValue)}</td>
+                <td>
+                  {formatCurrency(h.marketValue)}
+                  {h.marketValue !== null && totalValue !== null && totalValue > 0 && (
+                    <span style={{ color: 'var(--color-muted)', marginLeft: '0.25rem' }}>
+                      ({((h.marketValue / totalValue) * 100).toFixed(2)}%)
+                    </span>
+                  )}
+                </td>
                 <td>
                   {h.gainLoss !== null ? (
                     <span className={h.gainLoss >= 0 ? 'positive' : 'negative'}>
