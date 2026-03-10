@@ -62,6 +62,36 @@ server/src/         → Express backend
 shared/             → TypeScript types shared between frontend and backend
 ```
 
+## Production Deployment
+
+### Build and push the Docker image
+
+The `Makefile` supports any container registry. Set `REGISTRY` to your registry prefix:
+
+```sh
+# Docker Hub
+make push REGISTRY=docker.io/myuser
+
+# GitHub Container Registry
+make push REGISTRY=ghcr.io/myuser
+
+# AWS ECR
+make push REGISTRY=123456789.dkr.ecr.us-east-1.amazonaws.com
+
+# Custom image tag (defaults to "latest")
+make push REGISTRY=ghcr.io/myuser IMAGE_TAG=v1.0.0
+```
+
+### Deploy with Docker Compose
+
+Use `docker-compose.prod.yml` to run the pre-built image:
+
+```sh
+REGISTRY=ghcr.io/myuser docker compose -f docker-compose.prod.yml up -d
+```
+
+The app will be available on port 3001. SQLite data is persisted in a named Docker volume (`portfolio-data`).
+
 ## API Endpoints
 
 | Method | Endpoint | Description |

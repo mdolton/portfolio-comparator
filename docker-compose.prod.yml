@@ -1,0 +1,13 @@
+services:
+  app:
+    image: ${REGISTRY:+${REGISTRY}/}${IMAGE_NAME:-portfolio-comparator}:${IMAGE_TAG:-latest}
+    ports:
+      - "3001:3001"
+    volumes:
+      - portfolio-data:/app/server/data
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+volumes:
+  portfolio-data:
