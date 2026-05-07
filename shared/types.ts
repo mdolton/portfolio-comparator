@@ -68,3 +68,11 @@ export interface CreateTransactionRequest {
   price: number;
   date: string;
 }
+
+export interface PortfolioAnalysis {
+  id: number;
+  portfolio_id: number;
+  content: string;
+  model: string;
+  generated_at: string;
+}
