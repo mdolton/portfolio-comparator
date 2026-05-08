@@ -37,6 +37,15 @@ db.exec(`
     fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (ticker, date)
   );
+
+  CREATE TABLE IF NOT EXISTS portfolio_analyses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    portfolio_id INTEGER NOT NULL UNIQUE,
+    content TEXT NOT NULL,
+    model TEXT NOT NULL,
+    generated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
+  );
 `);
 
 // Migration: add notes column to existing databases

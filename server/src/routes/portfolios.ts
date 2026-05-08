@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import * as portfolioService from '../services/portfolioService.js';
-import * as transactionService from '../services/transactionService.js';
-import * as marketService from '../services/marketService.js';
+import * as holdingsEnrichment from '../services/holdingsEnrichment.js';
 import { AppError } from '../middleware/errorHandler.js';
+import * as analysisService from '../services/analysisService.js';
 
 const router = Router();
 
@@ -16,28 +16,11 @@ router.get('/:id', async (req, res) => {
   const portfolio = portfolioService.getPortfolioById(id);
   if (!portfolio) throw new AppError(404, 'Portfolio not found');
 
-  const holdings = transactionService.getHoldings(id);
-
-  // Enrich holdings with current prices
-  let totalValue: number | null = 0;
-  for (const holding of holdings) {
-    try {
-      const quote = await marketService.getQuote(holding.ticker);
-      holding.currentPrice = quote.price;
-      holding.marketValue = holding.shares * quote.price;
-      holding.gainLoss = holding.marketValue - holding.totalCost;
-      holding.gainLossPercent = holding.totalCost > 0 ? (holding.gainLoss / holding.totalCost) * 100 : null;
-      if (totalValue !== null) totalValue += holding.marketValue;
-    } catch {
-      totalValue = null;
-    }
-  }
+  const enriched = await holdingsEnrichment.getEnrichedHoldings(id);
 
   res.json({
     ...portfolio,
-    holdings,
-    totalValue,
-    totalCost: holdings.reduce((sum, h) => sum + h.totalCost, 0),
+    ...enriched,
   });
 });
 
@@ -73,6 +56,19 @@ router.delete('/:id', (req, res) => {
   const deleted = portfolioService.deletePortfolio(id);
   if (!deleted) throw new AppError(404, 'Portfolio not found');
   res.status(204).send();
+});
+
+router.get('/:id/analysis', (req, res) => {
+  const id = parseInt(req.params.id);
+  const portfolio = portfolioService.getPortfolioById(id);
+  if (!portfolio) throw new AppError(404, 'Portfolio not found');
+  res.json(analysisService.getAnalysis(id));
+});
+
+router.post('/:id/analysis', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const analysis = await analysisService.generateAnalysis(id);
+  res.json(analysis);
 });
 
 export default router;
