@@ -5,6 +5,7 @@ import { useTransactions } from '../hooks/useTransactions';
 import { TransactionForm } from './TransactionForm';
 import { TransactionTable } from './TransactionTable';
 import { HoldingsSummary } from './HoldingsSummary';
+import { AnalysisPanel } from './AnalysisPanel';
 
 interface Props {
   portfolioId: number;
@@ -66,6 +67,8 @@ export function PortfolioDetail({ portfolioId }: Props) {
         />
         {notesSaving && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Saving...</span>}
       </div>
+
+      <AnalysisPanel portfolioId={portfolioId} />
 
       <HoldingsSummary
         holdings={portfolio.holdings}
