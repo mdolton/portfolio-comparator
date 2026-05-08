@@ -12,6 +12,18 @@ A full-stack web application for tracking and comparing investment portfolios. R
 
 - Node.js (v18+)
 
+## Environment variables
+
+| Variable | Required for | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | AI analysis feature | Anthropic API key. Without it the rest of the app works; only the **Generate Analysis** button on the portfolio detail page will fail. |
+
+In development, set it inline when starting the backend:
+
+```sh
+ANTHROPIC_API_KEY=sk-ant-... npm run dev
+```
+
 ## Getting Started
 
 Install dependencies for both the frontend and backend:
@@ -100,6 +112,8 @@ The app will be available on port 3001. SQLite data is persisted in a named Dock
 | `POST` | `/api/portfolios` | Create a portfolio |
 | `GET` | `/api/portfolios/:id` | Get portfolio with holdings |
 | `DELETE` | `/api/portfolios/:id` | Delete a portfolio |
+| `GET` | `/api/portfolios/:id/analysis` | Get the latest AI analysis for a portfolio (or null) |
+| `POST` | `/api/portfolios/:id/analysis` | Generate (and replace) the AI analysis for a portfolio |
 | `GET` | `/api/portfolios/:id/transactions` | List transactions for a portfolio |
 | `POST` | `/api/portfolios/:id/transactions` | Add a transaction |
 | `DELETE` | `/api/transactions/:id` | Delete a transaction |
