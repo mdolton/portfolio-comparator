@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as portfolioService from '../services/portfolioService.js';
 import * as holdingsEnrichment from '../services/holdingsEnrichment.js';
 import { AppError } from '../middleware/errorHandler.js';
+import * as analysisService from '../services/analysisService.js';
 
 const router = Router();
 
@@ -55,6 +56,19 @@ router.delete('/:id', (req, res) => {
   const deleted = portfolioService.deletePortfolio(id);
   if (!deleted) throw new AppError(404, 'Portfolio not found');
   res.status(204).send();
+});
+
+router.get('/:id/analysis', (req, res) => {
+  const id = parseInt(req.params.id);
+  const portfolio = portfolioService.getPortfolioById(id);
+  if (!portfolio) throw new AppError(404, 'Portfolio not found');
+  res.json(analysisService.getAnalysis(id));
+});
+
+router.post('/:id/analysis', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const analysis = await analysisService.generateAnalysis(id);
+  res.json(analysis);
 });
 
 export default router;
