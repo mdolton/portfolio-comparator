@@ -8,6 +8,11 @@ import type { PortfolioAnalysis } from '../../../shared/types.js';
 
 const MODEL = 'claude-sonnet-4-6';
 
+// Generous ceiling so the full 4-section analysis is never truncated mid-sentence.
+// Output is billed per token actually generated, so a high cap costs nothing for
+// the typical short analysis; it just removes the cliff that cut responses off.
+const MAX_TOKENS = 8000;
+
 const SYSTEM_PROMPT = `You are an experienced portfolio analyst. Given a user's portfolio data and their notes (which may contain their investment thesis), produce a clear, grounded analysis. Take the user's stated thesis seriously and reference it explicitly. Be concrete: name specific holdings when discussing strengths, risks, or suggestions. Reason about position sizing, concentration, recent transaction activity, and how the holdings align with the stated thesis.
 
 Return markdown with exactly these sections in this order:
@@ -69,7 +74,7 @@ export async function generateAnalysis(portfolioId: number): Promise<PortfolioAn
   try {
     response = await client.messages.create({
       model: MODEL,
-      max_tokens: 2000,
+      max_tokens: MAX_TOKENS,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: JSON.stringify(userPayload, null, 2) }],
     });
@@ -86,6 +91,16 @@ export async function generateAnalysis(portfolioId: number): Promise<PortfolioAn
 
   if (!content) {
     throw new AppError(502, 'Claude returned an empty response');
+  }
+
+  // Never persist a silently-truncated analysis. With MAX_TOKENS this should
+  // effectively never fire, but if it does, fail loudly so the user can retry
+  // rather than seeing an analysis that stops mid-sentence.
+  if (response.stop_reason === 'max_tokens') {
+    throw new AppError(
+      502,
+      `Analysis was cut off after ${MAX_TOKENS} tokens. Try regenerating it.`,
+    );
   }
 
   db.prepare(
