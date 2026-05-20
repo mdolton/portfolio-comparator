@@ -5,13 +5,16 @@ export interface Portfolio {
   created_at: string;
 }
 
+export type TransactionType = 'buy' | 'sell' | 'deposit' | 'withdrawal' | 'dividend';
+
 export interface Transaction {
   id: number;
   portfolio_id: number;
-  ticker: string;
-  type: 'buy' | 'sell';
-  shares: number;
-  price: number;
+  type: TransactionType;
+  ticker: string | null;
+  shares: number | null;
+  price: number | null;
+  amount: number | null;
   date: string;
   created_at: string;
 }
@@ -29,8 +32,10 @@ export interface Holding {
 
 export interface PortfolioWithHoldings extends Portfolio {
   holdings: Holding[];
+  securitiesValue: number | null;
   totalValue: number | null;
   totalCost: number;
+  cash: number;
 }
 
 export interface TickerSearchResult {
@@ -62,10 +67,11 @@ export interface UpdatePortfolioRequest {
 }
 
 export interface CreateTransactionRequest {
-  ticker: string;
-  type: 'buy' | 'sell';
-  shares: number;
-  price: number;
+  type: TransactionType;
+  ticker?: string | null;
+  shares?: number | null;
+  price?: number | null;
+  amount?: number | null;
   date: string;
 }
 
