@@ -229,4 +229,22 @@ describe('timeWeightedReturnSeries', () => {
     expect(out[1].date).toBe('d4');
     expect(out[1].growthPct).toBeCloseTo(10);
   });
+
+  it('reports a negative return for a market loss', () => {
+    const out = timeWeightedReturnSeries([
+      { date: 'd1', value: 100, flow: 100 },
+      { date: 'd2', value: 80, flow: 0 }, // market drops 20%
+    ]);
+    expect(out[1].growthPct).toBeCloseTo(-20);
+  });
+
+  it('returns an empty series for empty input', () => {
+    expect(timeWeightedReturnSeries([])).toEqual([]);
+  });
+
+  it('returns a single 0% point for a one-day funded series', () => {
+    expect(timeWeightedReturnSeries([{ date: 'd1', value: 100, flow: 100 }])).toEqual([
+      { date: 'd1', growthPct: 0 },
+    ]);
+  });
 });

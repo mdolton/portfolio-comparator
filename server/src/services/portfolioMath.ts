@@ -151,7 +151,7 @@ export function portfolioValueAtDate(
  *  avoid divide-by-zero (e.g. account emptied then re-funded). */
 export function timeWeightedReturnSeries(points: DailyValuePoint[]): GrowthPoint[] {
   const result: GrowthPoint[] = [];
-  let index = 1; // cumulative TWR index; growth% = (index - 1) * 100
+  let index = 1; // cumulative TWR index; growth% = (index - 1) * 100 (negative for a loss)
   let prevValue = 0; // value at the previous day, V(d-1)
   let started = false;
 
@@ -167,7 +167,9 @@ export function timeWeightedReturnSeries(points: DailyValuePoint[]): GrowthPoint
     }
 
     // V(d-1) > 0: chain the day's growth factor, removing the external flow.
-    // V(d-1) <= 0: no invested base, so treat the day as flat (factor = 1).
+    //   A market decline alone keeps V(d-1) > 0, so a genuine loss flows through here.
+    // V(d-1) <= 0: no invested base (account fully drained/overdrawn by a prior
+    //   withdrawal), so treat the day as flat (factor = 1) to avoid divide-by-zero.
     if (prevValue > 0) {
       index *= (value - flow) / prevValue;
     }
