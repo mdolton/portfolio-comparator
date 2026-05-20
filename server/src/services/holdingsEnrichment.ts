@@ -4,14 +4,16 @@ import type { Holding } from '../../../shared/types.js';
 
 export interface EnrichedHoldings {
   holdings: Holding[];
-  totalValue: number | null;
+  securitiesValue: number | null;
   totalCost: number;
+  cash: number;
+  totalValue: number | null;
 }
 
 export async function getEnrichedHoldings(portfolioId: number): Promise<EnrichedHoldings> {
   const holdings = transactionService.getHoldings(portfolioId);
 
-  let totalValue: number | null = 0;
+  let securitiesValue: number | null = 0;
   for (const holding of holdings) {
     try {
       const quote = await marketService.getQuote(holding.ticker);
@@ -20,15 +22,15 @@ export async function getEnrichedHoldings(portfolioId: number): Promise<Enriched
       holding.gainLoss = holding.marketValue - holding.totalCost;
       holding.gainLossPercent =
         holding.totalCost > 0 ? (holding.gainLoss / holding.totalCost) * 100 : null;
-      if (totalValue !== null) totalValue += holding.marketValue;
+      if (securitiesValue !== null) securitiesValue += holding.marketValue;
     } catch {
-      totalValue = null;
+      securitiesValue = null;
     }
   }
 
-  return {
-    holdings,
-    totalValue,
-    totalCost: holdings.reduce((sum, h) => sum + h.totalCost, 0),
-  };
+  const cash = transactionService.getCashBalance(portfolioId);
+  const totalCost = holdings.reduce((sum, h) => sum + h.totalCost, 0);
+  const totalValue = securitiesValue === null ? null : securitiesValue + cash;
+
+  return { holdings, securitiesValue, totalCost, cash, totalValue };
 }

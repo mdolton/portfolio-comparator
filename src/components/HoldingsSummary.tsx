@@ -3,30 +3,29 @@ import { formatCurrency, formatPercent, formatShares } from '../utils/formatting
 
 interface Props {
   holdings: Holding[];
-  totalValue: number | null;
+  securitiesValue: number | null;
+  cash: number;
   totalCost: number;
+  totalValue: number | null;
 }
 
-export function HoldingsSummary({ holdings, totalValue, totalCost }: Props) {
-  if (holdings.length === 0) {
+export function HoldingsSummary({ holdings, securitiesValue, cash, totalCost, totalValue }: Props) {
+  if (holdings.length === 0 && cash === 0) {
     return null;
   }
 
-  const totalGainLoss = totalValue !== null ? totalValue - totalCost : null;
-  const totalGainLossPercent =
-    totalGainLoss !== null && totalCost > 0 ? (totalGainLoss / totalCost) * 100 : null;
+  const gainLoss = securitiesValue !== null ? securitiesValue - totalCost : null;
+  const gainLossPercent = gainLoss !== null && totalCost > 0 ? (gainLoss / totalCost) * 100 : null;
 
   return (
     <div className="card" style={{ marginBottom: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h3>Current Holdings</h3>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-            {formatCurrency(totalValue)}
-          </div>
-          {totalGainLoss !== null && (
-            <div className={totalGainLoss >= 0 ? 'positive' : 'negative'} style={{ fontSize: '0.875rem' }}>
-              {formatCurrency(totalGainLoss)} ({formatPercent(totalGainLossPercent)})
+          <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>{formatCurrency(totalValue)}</div>
+          {gainLoss !== null && (
+            <div className={gainLoss >= 0 ? 'positive' : 'negative'} style={{ fontSize: '0.875rem' }}>
+              {formatCurrency(gainLoss)} ({formatPercent(gainLossPercent)}) · securities
             </div>
           )}
         </div>
@@ -70,6 +69,21 @@ export function HoldingsSummary({ holdings, totalValue, totalCost }: Props) {
                 </td>
               </tr>
             ))}
+            <tr style={{ fontStyle: 'italic' }}>
+              <td style={{ fontWeight: 600 }}>Cash</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>
+                {formatCurrency(cash)}
+                {totalValue !== null && totalValue > 0 && (
+                  <span style={{ color: 'var(--color-muted)', marginLeft: '0.25rem' }}>
+                    ({((cash / totalValue) * 100).toFixed(2)}%)
+                  </span>
+                )}
+              </td>
+              <td>—</td>
+            </tr>
           </tbody>
         </table>
       </div>

@@ -1,7 +1,8 @@
 import * as transactionService from './transactionService.js';
 import * as portfolioService from './portfolioService.js';
 import * as marketService from './marketService.js';
-import type { PerformancePoint, Transaction } from '../../../shared/types.js';
+import type { PerformancePoint } from '../../../shared/types.js';
+import { portfolioValueAtDate } from './portfolioMath.js';
 
 function generateDateRange(start: string, end: string): string[] {
   const dates: string[] = [];
@@ -32,7 +33,9 @@ export async function getPerformanceData(
   const allTickers = new Set<string>();
   for (const { transactions } of portfolioData) {
     for (const tx of transactions) {
-      allTickers.add(tx.ticker);
+      if ((tx.type === 'buy' || tx.type === 'sell') && tx.ticker) {
+        allTickers.add(tx.ticker);
+      }
     }
   }
 
@@ -54,7 +57,7 @@ export async function getPerformanceData(
   const result: PerformancePoint[] = [];
 
   for (const date of dates) {
-    // Update last known prices for this date
+    // Update last known prices for this date (forward-fill)
     for (const ticker of allTickers) {
       const tickerPrices = pricesByTicker.get(ticker);
       if (tickerPrices?.has(date)) {
@@ -66,29 +69,12 @@ export async function getPerformanceData(
 
     for (const { portfolio, transactions } of portfolioData) {
       if (!portfolio) continue;
-
-      // Calculate holdings at this date
-      const holdings = calculateHoldingsAtDate(transactions, date);
-
-      // Calculate portfolio value
-      let totalValue = 0;
-      let hasPrice = false;
-
-      for (const [ticker, shares] of holdings) {
-        const price = lastKnownPrice.get(ticker);
-        if (price !== undefined) {
-          totalValue += shares * price;
-          hasPrice = true;
-        }
-      }
-
-      // Only include the point if we have price data and holdings
-      if (hasPrice || holdings.size === 0) {
-        point[portfolio.name] = Math.round(totalValue * 100) / 100;
-      }
+      // Only plot once the portfolio has any activity (trade or cash) by this date
+      if (!transactions.some((t) => t.date <= date)) continue;
+      const value = portfolioValueAtDate(transactions, lastKnownPrice, date);
+      point[portfolio.name] = Math.round(value * 100) / 100;
     }
 
-    // Only add the point if at least one portfolio has data
     const portfolioKeys = Object.keys(point).filter((k) => k !== 'date');
     if (portfolioKeys.length > 0) {
       result.push(point);
@@ -96,39 +82,4 @@ export async function getPerformanceData(
   }
 
   return result;
-}
-
-function calculateHoldingsAtDate(
-  transactions: Transaction[],
-  date: string,
-): Map<string, number> {
-  const holdings = new Map<string, number>();
-
-  // Filter and sort transactions up to this date
-  const relevant = transactions
-    .filter((tx) => tx.date <= date)
-    .sort((a, b) => {
-      const dateCmp = a.date.localeCompare(b.date);
-      if (dateCmp !== 0) return dateCmp;
-      // Buys before sells on same day
-      if (a.type === 'buy' && b.type === 'sell') return -1;
-      if (a.type === 'sell' && b.type === 'buy') return 1;
-      return 0;
-    });
-
-  for (const tx of relevant) {
-    const current = holdings.get(tx.ticker) ?? 0;
-    if (tx.type === 'buy') {
-      holdings.set(tx.ticker, current + tx.shares);
-    } else {
-      holdings.set(tx.ticker, current - tx.shares);
-    }
-  }
-
-  // Remove zero holdings
-  for (const [ticker, shares] of holdings) {
-    if (shares < 1e-9) holdings.delete(ticker);
-  }
-
-  return holdings;
 }
