@@ -72,8 +72,10 @@ export function PortfolioDetail({ portfolioId }: Props) {
 
       <HoldingsSummary
         holdings={portfolio.holdings}
-        totalValue={portfolio.totalValue}
+        securitiesValue={portfolio.securitiesValue}
+        cash={portfolio.cash}
         totalCost={portfolio.totalCost}
+        totalValue={portfolio.totalValue}
       />
 
       <TransactionForm
