@@ -21,10 +21,11 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     portfolio_id INTEGER NOT NULL,
-    ticker TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('buy', 'sell')),
-    shares REAL NOT NULL CHECK (shares > 0),
-    price REAL NOT NULL CHECK (price > 0),
+    type TEXT NOT NULL CHECK (type IN ('buy', 'sell', 'deposit', 'withdrawal', 'dividend')),
+    ticker TEXT,
+    shares REAL,
+    price REAL,
+    amount REAL,
     date TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
@@ -53,6 +54,37 @@ try {
   db.exec(`ALTER TABLE portfolios ADD COLUMN notes TEXT DEFAULT ''`);
 } catch {
   // Column already exists
+}
+
+// Migration: rebuild transactions table to support cash transaction types + amount column
+const txColumns = db.prepare(`PRAGMA table_info(transactions)`).all() as Array<{ name: string }>;
+const hasAmount = txColumns.some((c) => c.name === 'amount');
+if (!hasAmount) {
+  db.pragma('foreign_keys = OFF');
+  const rebuild = db.transaction(() => {
+    db.exec(`ALTER TABLE transactions RENAME TO transactions_old;`);
+    db.exec(`
+      CREATE TABLE transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        portfolio_id INTEGER NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('buy', 'sell', 'deposit', 'withdrawal', 'dividend')),
+        ticker TEXT,
+        shares REAL,
+        price REAL,
+        amount REAL,
+        date TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
+      );
+    `);
+    db.exec(`
+      INSERT INTO transactions (id, portfolio_id, type, ticker, shares, price, amount, date, created_at)
+      SELECT id, portfolio_id, type, ticker, shares, price, NULL, date, created_at FROM transactions_old;
+    `);
+    db.exec(`DROP TABLE transactions_old;`);
+  });
+  rebuild();
+  db.pragma('foreign_keys = ON');
 }
 
 export default db;
