@@ -21,15 +21,34 @@ router.post('/portfolios/:id/transactions', (req, res) => {
   const portfolio = portfolioService.getPortfolioById(portfolioId);
   if (!portfolio) throw new AppError(404, 'Portfolio not found');
 
-  const { ticker, type, shares, price, date } = req.body;
+  const { type, ticker, shares, price, amount, date } = req.body;
 
-  if (!ticker || typeof ticker !== 'string') throw new AppError(400, 'Valid ticker is required');
-  if (type !== 'buy' && type !== 'sell') throw new AppError(400, 'Type must be "buy" or "sell"');
-  if (typeof shares !== 'number' || shares <= 0) throw new AppError(400, 'Shares must be a positive number');
-  if (typeof price !== 'number' || price <= 0) throw new AppError(400, 'Price must be a positive number');
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new AppError(400, 'Date must be in YYYY-MM-DD format');
+  const TYPES = ['buy', 'sell', 'deposit', 'withdrawal', 'dividend'];
+  if (!TYPES.includes(type)) throw new AppError(400, 'Invalid transaction type');
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new AppError(400, 'Date must be in YYYY-MM-DD format');
+  }
 
-  const transaction = transactionService.addTransaction(portfolioId, ticker, type, shares, price, date);
+  const isTrade = type === 'buy' || type === 'sell';
+  if (isTrade) {
+    if (!ticker || typeof ticker !== 'string') throw new AppError(400, 'Valid ticker is required');
+    if (typeof shares !== 'number' || shares <= 0) throw new AppError(400, 'Shares must be a positive number');
+    if (typeof price !== 'number' || price <= 0) throw new AppError(400, 'Price must be a positive number');
+  } else {
+    if (typeof amount !== 'number' || amount <= 0) throw new AppError(400, 'Amount must be a positive number');
+    if (type === 'dividend' && ticker != null && typeof ticker !== 'string') {
+      throw new AppError(400, 'Ticker must be a string');
+    }
+  }
+
+  const transaction = transactionService.addTransaction(portfolioId, {
+    type,
+    date,
+    ticker: isTrade || (type === 'dividend' && ticker) ? ticker : null,
+    shares: isTrade ? shares : null,
+    price: isTrade ? price : null,
+    amount: isTrade ? null : amount,
+  });
   res.status(201).json(transaction);
 });
 
