@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Transaction } from '../../../shared/types.js';
-import { cashDelta, computeCashBalance, computeHoldings, negativeShareViolation } from './portfolioMath';
+import { cashDelta, computeCashBalance, computeHoldings, negativeShareViolation, holdingsAtDate, portfolioValueAtDate } from './portfolioMath';
 
 let nextId = 1;
 function tx(partial: Partial<Transaction>): Transaction {
@@ -114,5 +114,38 @@ describe('negativeShareViolation', () => {
       tx({ type: 'buy', ticker: 'AAPL', shares: 1, date: '2024-01-02' }),
     ];
     expect(negativeShareViolation(trades)).toBeNull();
+  });
+});
+
+describe('holdingsAtDate', () => {
+  it('returns share balances as of a date (inclusive)', () => {
+    const txs = [
+      tx({ type: 'buy', ticker: 'AAPL', shares: 10, price: 100, date: '2024-01-01' }),
+      tx({ type: 'sell', ticker: 'AAPL', shares: 4, price: 110, date: '2024-01-05' }),
+    ];
+    expect(holdingsAtDate(txs, '2024-01-03').get('AAPL')).toBe(10);
+    expect(holdingsAtDate(txs, '2024-01-05').get('AAPL')).toBe(6);
+  });
+});
+
+describe('portfolioValueAtDate', () => {
+  it('adds priced securities to the cash balance at the date', () => {
+    const txs = [
+      tx({ type: 'deposit', amount: 1000, date: '2024-01-01' }),
+      tx({ type: 'buy', ticker: 'AAPL', shares: 5, price: 100, date: '2024-01-02' }),
+    ];
+    const prices = new Map([['AAPL', 120]]);
+    // cash: 1000 - 500 = 500; securities: 5 * 120 = 600
+    expect(portfolioValueAtDate(txs, prices, '2024-01-02')).toBe(1100);
+  });
+
+  it('skips securities with no known price but still counts cash', () => {
+    const txs = [
+      tx({ type: 'deposit', amount: 200, date: '2024-01-01' }),
+      tx({ type: 'buy', ticker: 'XYZ', shares: 1, price: 50, date: '2024-01-02' }),
+    ];
+    const prices = new Map<string, number>();
+    // securities unpriced -> 0; cash: 200 - 50 = 150
+    expect(portfolioValueAtDate(txs, prices, '2024-01-02')).toBe(150);
   });
 });

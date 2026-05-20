@@ -69,6 +69,51 @@ export function computeHoldings(txs: Transaction[]): Holding[] {
   return holdings;
 }
 
+/** Share balances per ticker from trades dated on/before `date`. */
+export function holdingsAtDate(txs: Transaction[], date: string): Map<string, number> {
+  const holdings = new Map<string, number>();
+
+  const relevant = txs
+    .filter(
+      (tx) =>
+        (tx.type === 'buy' || tx.type === 'sell') &&
+        tx.date <= date &&
+        !!tx.ticker &&
+        tx.shares != null,
+    )
+    .sort((a, b) => {
+      const dateCmp = a.date.localeCompare(b.date);
+      if (dateCmp !== 0) return dateCmp;
+      if (a.type === 'buy' && b.type === 'sell') return -1;
+      if (a.type === 'sell' && b.type === 'buy') return 1;
+      return 0;
+    });
+
+  for (const tx of relevant) {
+    const current = holdings.get(tx.ticker!) ?? 0;
+    holdings.set(tx.ticker!, tx.type === 'buy' ? current + tx.shares! : current - tx.shares!);
+  }
+
+  for (const [ticker, shares] of holdings) {
+    if (shares < 1e-9) holdings.delete(ticker);
+  }
+  return holdings;
+}
+
+/** Portfolio value at a date: priced securities + cash balance at that date. */
+export function portfolioValueAtDate(
+  txs: Transaction[],
+  pricesAtDate: Map<string, number>,
+  date: string,
+): number {
+  let value = 0;
+  for (const [ticker, shares] of holdingsAtDate(txs, date)) {
+    const price = pricesAtDate.get(ticker);
+    if (price !== undefined) value += shares * price;
+  }
+  return value + computeCashBalance(txs, date);
+}
+
 /** First sell that would drive a ticker's share balance negative, or null. */
 export function negativeShareViolation(
   trades: Array<Pick<Transaction, 'type' | 'ticker' | 'shares' | 'date'>>,
