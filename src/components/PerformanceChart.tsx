@@ -8,7 +8,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import type { PerformancePoint, Portfolio } from '@shared/types';
+import type { PerformancePoint, Portfolio, PerformanceMetric } from '@shared/types';
 import { COLORS } from './PortfolioSelector';
 import { formatCurrency, formatPercent } from '../utils/formatting';
 
@@ -17,7 +17,7 @@ interface Props {
   portfolios: Portfolio[];
   selectedIds: number[];
   loading: boolean;
-  metric: 'value' | 'growth';
+  metric: PerformanceMetric;
 }
 
 export function PerformanceChart({ data, portfolios, selectedIds, loading, metric }: Props) {

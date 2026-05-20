@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { PerformanceMetric } from '@shared/types';
 import { usePortfolios } from '../hooks/usePortfolios';
 import { usePerformance } from '../hooks/usePerformance';
 import { PortfolioSelector } from '../components/PortfolioSelector';
@@ -19,7 +20,7 @@ export function DashboardPage() {
   const { data, loading: perfLoading, error: perfError, fetchPerformance } = usePerformance();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [dateRange, setDateRange] = useState(getDefaultDateRange);
-  const [metric, setMetric] = useState<'value' | 'growth'>('growth');
+  const [metric, setMetric] = useState<PerformanceMetric>('growth');
 
   useEffect(() => {
     if (selectedIds.length > 0) {
@@ -93,6 +94,7 @@ export function DashboardPage() {
           >
             {(['value', 'growth'] as const).map((m) => (
               <button
+                type="button"
                 key={m}
                 onClick={() => setMetric(m)}
                 style={{

@@ -63,6 +63,8 @@ export interface PerformanceResponse {
   growth: PerformancePoint[]; // cumulative time-weighted return in percent
 }
 
+export type PerformanceMetric = 'value' | 'growth';
+
 export interface CreatePortfolioRequest {
   name: string;
 }
