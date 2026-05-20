@@ -78,7 +78,9 @@ export async function getPerformanceData(
 
   const valueResult: PerformancePoint[] = [];
 
-  // Per-portfolio daily value+flow arrays feed the growth (TWR) series.
+  // Per-portfolio daily value+flow arrays feed the growth (TWR) series. These
+  // span the full date range; leading zero-value days (before the portfolio's
+  // first activity) are trimmed by timeWeightedReturnSeries.
   const dailyByPortfolio = new Map<string, DailyValuePoint[]>();
   for (const { portfolio } of portfolioData) {
     if (portfolio) dailyByPortfolio.set(portfolio.name, []);
