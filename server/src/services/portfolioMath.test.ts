@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Transaction } from '../../../shared/types.js';
 import { cashDelta, computeCashBalance } from './portfolioMath';
+import { computeHoldings } from './portfolioMath';
 
 let nextId = 1;
 function tx(partial: Partial<Transaction>): Transaction {
@@ -55,5 +56,34 @@ describe('computeCashBalance', () => {
   });
   it('can go negative', () => {
     expect(computeCashBalance([tx({ type: 'buy', shares: 1, price: 10 })])).toBe(-10);
+  });
+});
+
+describe('computeHoldings', () => {
+  it('aggregates buys and sells into positions, ignoring cash entries', () => {
+    const txs = [
+      tx({ type: 'deposit', amount: 1000, date: '2024-01-01' }),
+      tx({ type: 'buy', ticker: 'AAPL', shares: 10, price: 100, date: '2024-01-02' }),
+      tx({ type: 'buy', ticker: 'AAPL', shares: 10, price: 120, date: '2024-01-03' }),
+      tx({ type: 'sell', ticker: 'AAPL', shares: 5, price: 130, date: '2024-01-04' }),
+      tx({ type: 'dividend', ticker: 'AAPL', amount: 12, date: '2024-01-05' }),
+    ];
+    const holdings = computeHoldings(txs);
+    expect(holdings).toHaveLength(1);
+    const aapl = holdings[0];
+    expect(aapl.ticker).toBe('AAPL');
+    expect(aapl.shares).toBe(15);
+    // cost basis: 2200 total, sell removes 5 * (2200/20)=550 -> 1650
+    expect(aapl.totalCost).toBeCloseTo(1650);
+    expect(aapl.avgCost).toBeCloseTo(110);
+    expect(aapl.currentPrice).toBeNull();
+  });
+
+  it('drops fully-sold positions', () => {
+    const txs = [
+      tx({ type: 'buy', ticker: 'MSFT', shares: 5, price: 10, date: '2024-01-01' }),
+      tx({ type: 'sell', ticker: 'MSFT', shares: 5, price: 12, date: '2024-01-02' }),
+    ];
+    expect(computeHoldings(txs)).toHaveLength(0);
   });
 });
