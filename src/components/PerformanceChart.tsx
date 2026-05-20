@@ -10,16 +10,17 @@ import {
 } from 'recharts';
 import type { PerformancePoint, Portfolio } from '@shared/types';
 import { COLORS } from './PortfolioSelector';
-import { formatCurrency } from '../utils/formatting';
+import { formatCurrency, formatPercent } from '../utils/formatting';
 
 interface Props {
   data: PerformancePoint[];
   portfolios: Portfolio[];
   selectedIds: number[];
   loading: boolean;
+  metric: 'value' | 'growth';
 }
 
-export function PerformanceChart({ data, portfolios, selectedIds, loading }: Props) {
+export function PerformanceChart({ data, portfolios, selectedIds, loading, metric }: Props) {
   if (loading) return <div className="loading">Loading chart data...</div>;
 
   if (data.length === 0) {
@@ -47,10 +48,17 @@ export function PerformanceChart({ data, portfolios, selectedIds, loading }: Pro
         />
         <YAxis
           tick={{ fontSize: 12 }}
-          tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
+          tickFormatter={(v: number) =>
+            metric === 'growth'
+              ? `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`
+              : `$${(v / 1000).toFixed(0)}k`
+          }
         />
         <Tooltip
-          formatter={(value: number, name: string) => [formatCurrency(value), name]}
+          formatter={(value: number, name: string) => [
+            metric === 'growth' ? formatPercent(value) : formatCurrency(value),
+            name,
+          ]}
           labelFormatter={(label: string) => {
             const d = new Date(label + 'T00:00:00');
             return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });

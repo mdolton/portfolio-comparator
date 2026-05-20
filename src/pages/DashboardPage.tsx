@@ -19,6 +19,7 @@ export function DashboardPage() {
   const { data, loading: perfLoading, error: perfError, fetchPerformance } = usePerformance();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [dateRange, setDateRange] = useState(getDefaultDateRange);
+  const [metric, setMetric] = useState<'value' | 'growth'>('growth');
 
   useEffect(() => {
     if (selectedIds.length > 0) {
@@ -81,8 +82,37 @@ export function DashboardPage() {
       {perfError && <div className="error-message">{perfError}</div>}
 
       <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              overflow: 'hidden',
+            }}
+          >
+            {(['value', 'growth'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMetric(m)}
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: metric === m ? 'var(--primary)' : 'transparent',
+                  color: metric === m ? '#fff' : 'var(--text-muted)',
+                }}
+              >
+                {m === 'value' ? 'Value' : 'Growth %'}
+              </button>
+            ))}
+          </div>
+        </div>
         <PerformanceChart
-          data={data}
+          data={data[metric]}
+          metric={metric}
           portfolios={portfolios}
           selectedIds={selectedIds}
           loading={perfLoading}
