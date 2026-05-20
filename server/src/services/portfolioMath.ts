@@ -19,6 +19,22 @@ export function cashDelta(
   }
 }
 
+/** External cash flow of a single transaction: deposits/withdrawals only.
+ *  Dividends count as investment return (not external), and buys/sells are
+ *  internal cash<->shares swaps, so all three return 0. */
+export function externalCashFlow(
+  tx: Pick<Transaction, 'type' | 'amount'>,
+): number {
+  switch (tx.type) {
+    case 'deposit':
+      return tx.amount ?? 0;
+    case 'withdrawal':
+      return -(tx.amount ?? 0);
+    default:
+      return 0;
+  }
+}
+
 /** Cash balance from summing deltas, optionally only through `asOf` (inclusive). */
 export function computeCashBalance(
   txs: Array<Pick<Transaction, 'type' | 'shares' | 'price' | 'amount' | 'date'>>,

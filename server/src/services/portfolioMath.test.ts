@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Transaction } from '../../../shared/types.js';
-import { cashDelta, computeCashBalance, computeHoldings, negativeShareViolation, holdingsAtDate, portfolioValueAtDate } from './portfolioMath';
+import { cashDelta, computeCashBalance, computeHoldings, negativeShareViolation, holdingsAtDate, portfolioValueAtDate, externalCashFlow } from './portfolioMath';
 
 let nextId = 1;
 function tx(partial: Partial<Transaction>): Transaction {
@@ -147,5 +147,21 @@ describe('portfolioValueAtDate', () => {
     const prices = new Map<string, number>();
     // securities unpriced -> 0; cash: 200 - 50 = 150
     expect(portfolioValueAtDate(txs, prices, '2024-01-02')).toBe(150);
+  });
+});
+
+describe('externalCashFlow', () => {
+  it('is the positive amount for a deposit', () => {
+    expect(externalCashFlow(tx({ type: 'deposit', amount: 100 }))).toBe(100);
+  });
+  it('is the negative amount for a withdrawal', () => {
+    expect(externalCashFlow(tx({ type: 'withdrawal', amount: 30 }))).toBe(-30);
+  });
+  it('is zero for a dividend (counts as return, not an external flow)', () => {
+    expect(externalCashFlow(tx({ type: 'dividend', amount: 7 }))).toBe(0);
+  });
+  it('is zero for buys and sells (internal cash<->shares swaps)', () => {
+    expect(externalCashFlow(tx({ type: 'buy', shares: 10, price: 5 }))).toBe(0);
+    expect(externalCashFlow(tx({ type: 'sell', shares: 10, price: 5 }))).toBe(0);
   });
 });
