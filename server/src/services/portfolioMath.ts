@@ -1,5 +1,19 @@
 import type { Transaction, Holding } from '../../../shared/types.js';
 
+/** One day of a portfolio's history: total value and the external cash flow
+ *  (deposits − withdrawals) that occurred that day. */
+export interface DailyValuePoint {
+  date: string;
+  value: number;
+  flow: number;
+}
+
+/** Cumulative time-weighted return at a date, in percent. */
+export interface GrowthPoint {
+  date: string;
+  growthPct: number;
+}
+
 /** Cash impact of a single transaction. */
 export function cashDelta(
   tx: Pick<Transaction, 'type' | 'shares' | 'price' | 'amount'>,
@@ -11,6 +25,22 @@ export function cashDelta(
       return (tx.shares ?? 0) * (tx.price ?? 0);
     case 'deposit':
     case 'dividend':
+      return tx.amount ?? 0;
+    case 'withdrawal':
+      return -(tx.amount ?? 0);
+    default:
+      return 0;
+  }
+}
+
+/** External cash flow of a single transaction: deposits/withdrawals only.
+ *  Dividends count as investment return (not external), and buys/sells are
+ *  internal cash<->shares swaps, so all three return 0. */
+export function externalCashFlow(
+  tx: Pick<Transaction, 'type' | 'amount'>,
+): number {
+  switch (tx.type) {
+    case 'deposit':
       return tx.amount ?? 0;
     case 'withdrawal':
       return -(tx.amount ?? 0);
@@ -112,6 +142,43 @@ export function portfolioValueAtDate(
     if (price !== undefined) value += shares * price;
   }
   return value + computeCashBalance(txs, date);
+}
+
+/** Cumulative time-weighted return (%) per date. Chains daily growth factors,
+ *  dividing out external cash flows so deposits/withdrawals never count as
+ *  growth. The baseline (0%) is the first day with positive value; earlier
+ *  days are omitted. Days whose prior value is <= 0 are treated as flat to
+ *  avoid divide-by-zero (e.g. account emptied then re-funded). */
+export function timeWeightedReturnSeries(points: DailyValuePoint[]): GrowthPoint[] {
+  const result: GrowthPoint[] = [];
+  let index = 1; // cumulative TWR index; growth% = (index - 1) * 100 (negative for a loss)
+  let prevValue = 0; // value at the previous day, V(d-1)
+  let started = false;
+
+  for (const { date, value, flow } of points) {
+    if (!started) {
+      // Establish the baseline on the first day the portfolio holds value.
+      if (value > 0) {
+        started = true;
+        prevValue = value;
+        result.push({ date, growthPct: 0 });
+      }
+      continue;
+    }
+
+    // V(d-1) > 0: chain the day's growth factor, removing the external flow.
+    //   A market decline alone keeps V(d-1) > 0, so a genuine loss flows through here.
+    // V(d-1) <= 0: no invested base (account fully drained/overdrawn by a prior
+    //   withdrawal), so treat the day as flat (factor = 1) to avoid divide-by-zero.
+    if (prevValue > 0) {
+      index *= (value - flow) / prevValue;
+    }
+
+    result.push({ date, growthPct: (index - 1) * 100 });
+    prevValue = value;
+  }
+
+  return result;
 }
 
 /** First sell that would drive a ticker's share balance negative, or null. */

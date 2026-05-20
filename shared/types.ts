@@ -58,6 +58,13 @@ export interface PerformancePoint {
   [portfolioName: string]: string | number;
 }
 
+export interface PerformanceResponse {
+  value: PerformancePoint[];  // total portfolio value in dollars
+  growth: PerformancePoint[]; // cumulative time-weighted return in percent
+}
+
+export type PerformanceMetric = 'value' | 'growth';
+
 export interface CreatePortfolioRequest {
   name: string;
 }

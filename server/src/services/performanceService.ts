@@ -1,8 +1,13 @@
 import * as transactionService from './transactionService.js';
 import * as portfolioService from './portfolioService.js';
 import * as marketService from './marketService.js';
-import type { PerformancePoint } from '../../../shared/types.js';
-import { portfolioValueAtDate } from './portfolioMath.js';
+import type { PerformancePoint, PerformanceResponse } from '../../../shared/types.js';
+import {
+  portfolioValueAtDate,
+  externalCashFlow,
+  timeWeightedReturnSeries,
+  type DailyValuePoint,
+} from './portfolioMath.js';
 
 function generateDateRange(start: string, end: string): string[] {
   const dates: string[] = [];
@@ -17,11 +22,28 @@ function generateDateRange(start: string, end: string): string[] {
   return dates;
 }
 
+/** Merge per-portfolio TWR series into date-keyed PerformancePoints. */
+function buildGrowthPoints(
+  dailyByPortfolio: Map<string, DailyValuePoint[]>,
+): PerformancePoint[] {
+  const byDate = new Map<string, PerformancePoint>();
+
+  for (const [name, daily] of dailyByPortfolio) {
+    for (const { date, growthPct } of timeWeightedReturnSeries(daily)) {
+      const point = byDate.get(date) ?? { date };
+      point[name] = Math.round(growthPct * 100) / 100;
+      byDate.set(date, point);
+    }
+  }
+
+  return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function getPerformanceData(
   portfolioIds: number[],
   startDate: string,
   endDate: string,
-): Promise<PerformancePoint[]> {
+): Promise<PerformanceResponse> {
   // Gather all transactions and portfolio info
   const portfolioData = portfolioIds.map((id) => {
     const portfolio = portfolioService.getPortfolioById(id);
@@ -54,7 +76,15 @@ export async function getPerformanceData(
   // Forward-fill prices: for each ticker, track last known price
   const lastKnownPrice = new Map<string, number>();
 
-  const result: PerformancePoint[] = [];
+  const valueResult: PerformancePoint[] = [];
+
+  // Per-portfolio daily value+flow arrays feed the growth (TWR) series. These
+  // span the full date range; leading zero-value days (before the portfolio's
+  // first activity) are trimmed by timeWeightedReturnSeries.
+  const dailyByPortfolio = new Map<string, DailyValuePoint[]>();
+  for (const { portfolio } of portfolioData) {
+    if (portfolio) dailyByPortfolio.set(portfolio.name, []);
+  }
 
   for (const date of dates) {
     // Update last known prices for this date (forward-fill)
@@ -69,17 +99,25 @@ export async function getPerformanceData(
 
     for (const { portfolio, transactions } of portfolioData) {
       if (!portfolio) continue;
-      // Only plot once the portfolio has any activity (trade or cash) by this date
-      if (!transactions.some((t) => t.date <= date)) continue;
+
       const value = portfolioValueAtDate(transactions, lastKnownPrice, date);
-      point[portfolio.name] = Math.round(value * 100) / 100;
+      const flow = transactions.reduce(
+        (sum, t) => (t.date === date ? sum + externalCashFlow(t) : sum),
+        0,
+      );
+      dailyByPortfolio.get(portfolio.name)!.push({ date, value, flow });
+
+      // Value series: only plot once the portfolio has any activity by this date.
+      if (transactions.some((t) => t.date <= date)) {
+        point[portfolio.name] = Math.round(value * 100) / 100;
+      }
     }
 
     const portfolioKeys = Object.keys(point).filter((k) => k !== 'date');
     if (portfolioKeys.length > 0) {
-      result.push(point);
+      valueResult.push(point);
     }
   }
 
-  return result;
+  return { value: valueResult, growth: buildGrowthPoints(dailyByPortfolio) };
 }
