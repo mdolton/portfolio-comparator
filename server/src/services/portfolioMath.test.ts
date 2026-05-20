@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Transaction } from '../../../shared/types.js';
-import { cashDelta, computeCashBalance, computeHoldings, negativeShareViolation, holdingsAtDate, portfolioValueAtDate, externalCashFlow } from './portfolioMath';
+import { cashDelta, computeCashBalance, computeHoldings, negativeShareViolation, holdingsAtDate, portfolioValueAtDate, externalCashFlow, timeWeightedReturnSeries } from './portfolioMath';
 
 let nextId = 1;
 function tx(partial: Partial<Transaction>): Transaction {
@@ -163,5 +163,70 @@ describe('externalCashFlow', () => {
   it('is zero for buys and sells (internal cash<->shares swaps)', () => {
     expect(externalCashFlow(tx({ type: 'buy', shares: 10, price: 5 }))).toBe(0);
     expect(externalCashFlow(tx({ type: 'sell', shares: 10, price: 5 }))).toBe(0);
+  });
+});
+
+describe('timeWeightedReturnSeries', () => {
+  it('is flat at 0% when the market does not move', () => {
+    const out = timeWeightedReturnSeries([
+      { date: 'd1', value: 100, flow: 100 },
+      { date: 'd2', value: 100, flow: 0 },
+      { date: 'd3', value: 100, flow: 0 },
+    ]);
+    expect(out.map((p) => p.growthPct)).toEqual([0, 0, 0]);
+  });
+
+  it('does not jump when a deposit arrives', () => {
+    const out = timeWeightedReturnSeries([
+      { date: 'd1', value: 100, flow: 100 }, // baseline
+      { date: 'd2', value: 110, flow: 0 },   // +10% market
+      { date: 'd3', value: 210, flow: 100 }, // +100 deposit, no market move
+      { date: 'd4', value: 231, flow: 0 },   // +10% on 210
+    ]);
+    expect(out[0].growthPct).toBeCloseTo(0);
+    expect(out[1].growthPct).toBeCloseTo(10);
+    expect(out[2].growthPct).toBeCloseTo(10); // deposit did not move the line
+    expect(out[3].growthPct).toBeCloseTo(21);
+  });
+
+  it('counts a dividend as growth', () => {
+    const out = timeWeightedReturnSeries([
+      { date: 'd1', value: 100, flow: 100 },
+      { date: 'd2', value: 105, flow: 0 }, // +5 dividend lands in value, flow=0
+    ]);
+    expect(out[1].growthPct).toBeCloseTo(5);
+  });
+
+  it('does not drop when a withdrawal is taken', () => {
+    const out = timeWeightedReturnSeries([
+      { date: 'd1', value: 100, flow: 100 },
+      { date: 'd2', value: 50, flow: -50 }, // withdraw 50, no market move
+      { date: 'd3', value: 55, flow: 0 },   // +10% on remaining 50
+    ]);
+    expect(out[1].growthPct).toBeCloseTo(0);
+    expect(out[2].growthPct).toBeCloseTo(10);
+  });
+
+  it('handles emptying then re-funding the account without dividing by zero', () => {
+    const out = timeWeightedReturnSeries([
+      { date: 'd1', value: 100, flow: 100 },
+      { date: 'd2', value: 0, flow: -100 }, // withdraw everything
+      { date: 'd3', value: 50, flow: 50 },  // re-fund
+      { date: 'd4', value: 60, flow: 0 },   // +20% on 50
+    ]);
+    expect(out.map((p) => p.growthPct)).toEqual([0, 0, 0, expect.closeTo(20)]);
+  });
+
+  it('starts the baseline at the first day with positive value', () => {
+    const out = timeWeightedReturnSeries([
+      { date: 'd1', value: 0, flow: 0 },     // no activity yet -> omitted
+      { date: 'd2', value: 0, flow: 0 },     // omitted
+      { date: 'd3', value: 200, flow: 200 }, // baseline 0%
+      { date: 'd4', value: 220, flow: 0 },   // +10%
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toEqual({ date: 'd3', growthPct: 0 });
+    expect(out[1].date).toBe('d4');
+    expect(out[1].growthPct).toBeCloseTo(10);
   });
 });
