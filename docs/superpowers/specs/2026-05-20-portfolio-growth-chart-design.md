@@ -138,8 +138,9 @@ Performance Comparison
 
 ## Testing
 
-Add **Vitest** (minimal config; no test runner exists today). Unit-test the new pure
-math functions in `portfolioMath.ts`:
+Vitest is already configured (`vitest.config.ts`, root `test` script, and an existing
+`server/src/services/portfolioMath.test.ts` with 15 passing tests). Add unit tests for
+the new pure math functions in `portfolioMath.ts`:
 
 - Flat market → 0% throughout.
 - A deposit mid-range → no jump in the growth line.
