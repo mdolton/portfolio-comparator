@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Transaction } from '../../../shared/types.js';
-import { cashDelta, computeCashBalance } from './portfolioMath';
-import { computeHoldings } from './portfolioMath';
+import { cashDelta, computeCashBalance, computeHoldings, negativeShareViolation } from './portfolioMath';
 
 let nextId = 1;
 function tx(partial: Partial<Transaction>): Transaction {
@@ -85,5 +84,35 @@ describe('computeHoldings', () => {
       tx({ type: 'sell', ticker: 'MSFT', shares: 5, price: 12, date: '2024-01-02' }),
     ];
     expect(computeHoldings(txs)).toHaveLength(0);
+  });
+});
+
+describe('negativeShareViolation', () => {
+  it('returns null when balances stay non-negative', () => {
+    const trades = [
+      tx({ type: 'buy', ticker: 'AAPL', shares: 10, date: '2024-01-01' }),
+      tx({ type: 'sell', ticker: 'AAPL', shares: 10, date: '2024-01-02' }),
+    ];
+    expect(negativeShareViolation(trades)).toBeNull();
+  });
+
+  it('flags a sell that exceeds holdings', () => {
+    const trades = [
+      tx({ type: 'buy', ticker: 'AAPL', shares: 5, date: '2024-01-01' }),
+      tx({ type: 'sell', ticker: 'AAPL', shares: 8, date: '2024-01-02' }),
+    ];
+    const v = negativeShareViolation(trades);
+    expect(v).not.toBeNull();
+    expect(v?.ticker).toBe('AAPL');
+    expect(v?.date).toBe('2024-01-02');
+    expect(v?.balance).toBeCloseTo(-3);
+  });
+
+  it('ignores cash transactions', () => {
+    const trades = [
+      tx({ type: 'withdrawal', amount: 9999, date: '2024-01-01' }),
+      tx({ type: 'buy', ticker: 'AAPL', shares: 1, date: '2024-01-02' }),
+    ];
+    expect(negativeShareViolation(trades)).toBeNull();
   });
 });

@@ -68,3 +68,32 @@ export function computeHoldings(txs: Transaction[]): Holding[] {
   }
   return holdings;
 }
+
+/** First sell that would drive a ticker's share balance negative, or null. */
+export function negativeShareViolation(
+  trades: Array<Pick<Transaction, 'type' | 'ticker' | 'shares' | 'date'>>,
+): { ticker: string; date: string; balance: number } | null {
+  const EPSILON = 1e-9;
+  const balanceByTicker = new Map<string, number>();
+
+  const sorted = trades
+    .filter((t) => t.type === 'buy' || t.type === 'sell')
+    .sort((a, b) => {
+      const dateCmp = a.date.localeCompare(b.date);
+      if (dateCmp !== 0) return dateCmp;
+      if (a.type === 'buy' && b.type === 'sell') return -1;
+      if (a.type === 'sell' && b.type === 'buy') return 1;
+      return 0;
+    });
+
+  for (const tx of sorted) {
+    if (!tx.ticker || tx.shares == null) continue;
+    const current = balanceByTicker.get(tx.ticker) ?? 0;
+    const newBalance = tx.type === 'buy' ? current + tx.shares : current - tx.shares;
+    if (newBalance < -EPSILON) {
+      return { ticker: tx.ticker, date: tx.date, balance: newBalance };
+    }
+    balanceByTicker.set(tx.ticker, newBalance);
+  }
+  return null;
+}
