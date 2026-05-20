@@ -13,7 +13,7 @@ const MODEL = 'claude-sonnet-4-6';
 // the typical short analysis; it just removes the cliff that cut responses off.
 const MAX_TOKENS = 8000;
 
-const SYSTEM_PROMPT = `You are an experienced portfolio analyst. Given a user's portfolio data and their notes (which may contain their investment thesis), produce a clear, grounded analysis. Take the user's stated thesis seriously and reference it explicitly. Be concrete: name specific holdings when discussing strengths, risks, or suggestions. Reason about position sizing, concentration, recent transaction activity, and how the holdings align with the stated thesis.
+const SYSTEM_PROMPT = `You are an experienced portfolio analyst. Given a user's portfolio data and their notes (which may contain their investment thesis), produce a clear, grounded analysis. Take the user's stated thesis seriously and reference it explicitly. Be concrete: name specific holdings when discussing strengths, risks, or suggestions. Reason about position sizing, concentration, recent transaction activity, and how the holdings align with the stated thesis. Treat the cash balance as a position: weigh cash allocation (uninvested dry powder), and account for deposits, withdrawals, and dividend income. A negative cash balance indicates margin/borrowing.
 
 Return markdown with exactly these sections in this order:
 
@@ -48,7 +48,12 @@ export async function generateAnalysis(portfolioId: number): Promise<PortfolioAn
 
   const userPayload = {
     notes: portfolio.notes ?? '',
-    totals: { cost: enriched.totalCost, value: enriched.totalValue },
+    totals: {
+      cost: enriched.totalCost,
+      securitiesValue: enriched.securitiesValue,
+      cash: enriched.cash,
+      value: enriched.totalValue,
+    },
     holdings: enriched.holdings.map((h) => ({
       ticker: h.ticker,
       shares: h.shares,
@@ -60,10 +65,11 @@ export async function generateAnalysis(portfolioId: number): Promise<PortfolioAn
       gainLossPercent: h.gainLossPercent,
     })),
     transactions: transactions.map((t) => ({
-      ticker: t.ticker,
       type: t.type,
+      ticker: t.ticker,
       shares: t.shares,
       price: t.price,
+      amount: t.amount,
       date: t.date,
     })),
   };
