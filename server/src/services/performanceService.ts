@@ -33,7 +33,9 @@ export async function getPerformanceData(
   const allTickers = new Set<string>();
   for (const { transactions } of portfolioData) {
     for (const tx of transactions) {
-      allTickers.add(tx.ticker);
+      if ((tx.type === 'buy' || tx.type === 'sell') && tx.ticker) {
+        allTickers.add(tx.ticker);
+      }
     }
   }
 
