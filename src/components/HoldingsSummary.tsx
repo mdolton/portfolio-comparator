@@ -9,8 +9,12 @@ interface Props {
   totalValue: number | null;
 }
 
+const MIN_VISIBLE_MARKET_VALUE = 0.005;
+
 export function HoldingsSummary({ holdings, securitiesValue, cash, totalCost, totalValue }: Props) {
-  const visibleHoldings = holdings.filter((holding) => holding.shares > 0);
+  const visibleHoldings = holdings.filter(
+    (holding) => holding.shares > 0 && (holding.marketValue === null || holding.marketValue >= MIN_VISIBLE_MARKET_VALUE),
+  );
 
   if (visibleHoldings.length === 0 && cash === 0) {
     return null;
