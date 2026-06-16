@@ -10,7 +10,9 @@ interface Props {
 }
 
 export function HoldingsSummary({ holdings, securitiesValue, cash, totalCost, totalValue }: Props) {
-  if (holdings.length === 0 && cash === 0) {
+  const visibleHoldings = holdings.filter((holding) => holding.shares > 0);
+
+  if (visibleHoldings.length === 0 && cash === 0) {
     return null;
   }
 
@@ -44,7 +46,7 @@ export function HoldingsSummary({ holdings, securitiesValue, cash, totalCost, to
             </tr>
           </thead>
           <tbody>
-            {holdings.map((h) => (
+            {visibleHoldings.map((h) => (
               <tr key={h.ticker}>
                 <td style={{ fontWeight: 600 }}>{h.ticker}</td>
                 <td>{formatShares(h.shares)}</td>
