@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { usePortfolioAnalysis } from '../hooks/usePortfolioAnalysis';
 
 interface Props {
@@ -52,7 +53,7 @@ export function AnalysisPanel({ portfolioId }: Props) {
             Generated {new Date(analysis.generated_at + 'Z').toLocaleString()} · {analysis.model}
           </div>
           <div className="markdown-body">
-            <ReactMarkdown>{analysis.content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysis.content}</ReactMarkdown>
           </div>
         </>
       ) : (
