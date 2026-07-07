@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { usePortfolioDetail } from '../hooks/usePortfolios';
 import { useTransactions } from '../hooks/useTransactions';
@@ -16,12 +16,21 @@ export function PortfolioDetail({ portfolioId }: Props) {
   const { transactions, loading: tLoading, error: tError, addTransaction, deleteTransaction } = useTransactions(portfolioId);
   const [notes, setNotes] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (portfolio) {
       setNotes(portfolio.notes || '');
     }
   }, [portfolio]);
+
+  useEffect(() => {
+    const el = notesRef.current;
+    if (el) {
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight + 2}px`;
+    }
+  }, [notes]);
 
   if (pLoading) return <div className="loading">Loading portfolio...</div>;
   if (pError) return <div className="error-message">{pError}</div>;
@@ -48,13 +57,14 @@ export function PortfolioDetail({ portfolioId }: Props) {
 
       <div style={{ marginBottom: '1rem' }}>
         <textarea
+          ref={notesRef}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           onBlur={handleNotesBlur}
           placeholder="Add notes about this portfolio..."
           style={{
             width: '100%',
-            minHeight: '60px',
+            minHeight: '120px',
             padding: '0.5rem',
             borderRadius: '4px',
             border: '1px solid var(--border)',
@@ -63,6 +73,7 @@ export function PortfolioDetail({ portfolioId }: Props) {
             resize: 'vertical',
             fontFamily: 'inherit',
             fontSize: '0.875rem',
+            overflow: 'hidden',
           }}
         />
         {notesSaving && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Saving...</span>}
