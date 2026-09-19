@@ -4,6 +4,7 @@ import { AppError } from '../middleware/errorHandler.js';
 import * as portfolioService from './portfolioService.js';
 import * as transactionService from './transactionService.js';
 import * as holdingsEnrichment from './holdingsEnrichment.js';
+import * as analysisGuard from '../middleware/analysisGuard.js';
 import type { PortfolioAnalysis } from '../../../shared/types.js';
 
 const MODEL = 'claude-sonnet-4-6';
@@ -38,85 +39,104 @@ export async function generateAnalysis(portfolioId: number): Promise<PortfolioAn
   const portfolio = portfolioService.getPortfolioById(portfolioId);
   if (!portfolio) throw new AppError(404, 'Portfolio not found');
 
+  // Atomic check-and-track to prevent race conditions
+  if (!analysisGuard.checkAndTrack(portfolioId)) {
+    throw new AppError(409, 'Analysis is already in progress for this portfolio');
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
+    analysisGuard.cleanupAnalysis(portfolioId);
     throw new AppError(500, 'ANTHROPIC_API_KEY not configured on server');
   }
 
-  const enriched = await holdingsEnrichment.getEnrichedHoldings(portfolioId);
-  const transactions = transactionService.getTransactionsByPortfolio(portfolioId);
+  // Track this analysis to prevent concurrent runs
+  const analysisPromise = (async () => {
+    const enriched = await holdingsEnrichment.getEnrichedHoldings(portfolioId);
+    const transactions = transactionService.getTransactionsByPortfolio(portfolioId);
 
-  const userPayload = {
-    notes: portfolio.notes ?? '',
-    totals: {
-      cost: enriched.totalCost,
-      securitiesValue: enriched.securitiesValue,
-      cash: enriched.cash,
-      value: enriched.totalValue,
-    },
-    holdings: enriched.holdings.map((h) => ({
-      ticker: h.ticker,
-      shares: h.shares,
-      avgCost: h.avgCost,
-      totalCost: h.totalCost,
-      currentPrice: h.currentPrice,
-      marketValue: h.marketValue,
-      gainLoss: h.gainLoss,
-      gainLossPercent: h.gainLossPercent,
-    })),
-    transactions: transactions.map((t) => ({
-      type: t.type,
-      ticker: t.ticker,
-      shares: t.shares,
-      price: t.price,
-      amount: t.amount,
-      date: t.date,
-    })),
-  };
+    const userPayload = {
+      notes: portfolio.notes ?? '',
+      totals: {
+        cost: enriched.totalCost,
+        securitiesValue: enriched.securitiesValue,
+        cash: enriched.cash,
+        value: enriched.totalValue,
+      },
+      holdings: enriched.holdings.map((h) => ({
+        ticker: h.ticker,
+        shares: h.shares,
+        avgCost: h.avgCost,
+        totalCost: h.totalCost,
+        currentPrice: h.currentPrice,
+        marketValue: h.marketValue,
+        gainLoss: h.gainLoss,
+        gainLossPercent: h.gainLossPercent,
+      })),
+      transactions: transactions.map((t) => ({
+        type: t.type,
+        ticker: t.ticker,
+        shares: t.shares,
+        price: t.price,
+        amount: t.amount,
+        date: t.date,
+      })),
+    };
 
-  const client = new Anthropic({ apiKey });
+    const client = new Anthropic({ apiKey });
 
-  let response;
+    let response;
+    try {
+      response = await client.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: JSON.stringify(userPayload, null, 2) }],
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      throw new AppError(502, `Claude API request failed: ${message}`);
+    }
+
+    const content = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+      .map((block) => block.text)
+      .join('\n')
+      .trim();
+
+    if (!content) {
+      throw new AppError(502, 'Claude returned an empty response');
+    }
+
+    // Never persist a silently-truncated analysis. With MAX_TOKENS this should
+    // effectively never fire, but if it does, fail loudly so the user can retry
+    // rather than seeing an analysis that stops mid-sentence.
+    if (response.stop_reason === 'max_tokens') {
+      throw new AppError(
+        502,
+        `Analysis was cut off after ${MAX_TOKENS} tokens. Try regenerating it.`,
+      );
+    }
+
+    db.prepare(
+      `INSERT INTO portfolio_analyses (portfolio_id, content, model)
+       VALUES (?, ?, ?)
+       ON CONFLICT(portfolio_id) DO UPDATE SET
+         content = excluded.content,
+         model = excluded.model,
+         generated_at = datetime('now')`,
+    ).run(portfolioId, content, MODEL);
+  })();
+
+  // Track the analysis
+  analysisGuard.trackAnalysis(portfolioId, analysisPromise);
+
   try {
-    response = await client.messages.create({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: JSON.stringify(userPayload, null, 2) }],
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    throw new AppError(502, `Claude API request failed: ${message}`);
+    await analysisPromise;
+  } finally {
+    // Always clean up tracking, even if analysis fails
+    analysisGuard.cleanupAnalysis(portfolioId);
   }
-
-  const content = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map((block) => block.text)
-    .join('\n')
-    .trim();
-
-  if (!content) {
-    throw new AppError(502, 'Claude returned an empty response');
-  }
-
-  // Never persist a silently-truncated analysis. With MAX_TOKENS this should
-  // effectively never fire, but if it does, fail loudly so the user can retry
-  // rather than seeing an analysis that stops mid-sentence.
-  if (response.stop_reason === 'max_tokens') {
-    throw new AppError(
-      502,
-      `Analysis was cut off after ${MAX_TOKENS} tokens. Try regenerating it.`,
-    );
-  }
-
-  db.prepare(
-    `INSERT INTO portfolio_analyses (portfolio_id, content, model)
-     VALUES (?, ?, ?)
-     ON CONFLICT(portfolio_id) DO UPDATE SET
-       content = excluded.content,
-       model = excluded.model,
-       generated_at = datetime('now')`,
-  ).run(portfolioId, content, MODEL);
 
   return getAnalysis(portfolioId)!;
 }

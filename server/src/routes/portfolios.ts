@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import * as portfolioService from '../services/portfolioService.js';
 import * as holdingsEnrichment from '../services/holdingsEnrichment.js';
-import { AppError } from '../middleware/errorHandler.js';
 import * as analysisService from '../services/analysisService.js';
+import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
 
