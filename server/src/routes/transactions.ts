@@ -5,6 +5,17 @@ import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
 
+const DATE_RE = /^(\d{4})-(0[1-9]|1[012])-(0[1-9]|[12]\d|3[01])$/;
+const TICKER_RE = /^[A-Z0-9.]{1,10}$/;
+
+function validateDate(dateStr: string): void {
+  if (!DATE_RE.test(dateStr)) throw new AppError(400, 'Date must be in YYYY-MM-DD format');
+  const date = new Date(dateStr);
+  if (date > new Date()) throw new AppError(400, 'Date cannot be in the future');
+}
+
+const TYPES = ['buy', 'sell', 'deposit', 'withdrawal', 'dividend'] as const;
+
 // GET /api/portfolios/:id/transactions
 router.get('/portfolios/:id/transactions', (req, res) => {
   const portfolioId = parseInt(req.params.id);
@@ -21,25 +32,26 @@ router.post('/portfolios/:id/transactions', (req, res) => {
   const portfolio = portfolioService.getPortfolioById(portfolioId);
   if (!portfolio) throw new AppError(404, 'Portfolio not found');
 
-  const { type, ticker, shares, price, amount, date } = req.body;
+  const { type, ticker: rawTicker, shares, price, amount, date: rawDate } = req.body;
 
-  const TYPES = ['buy', 'sell', 'deposit', 'withdrawal', 'dividend'];
   if (!TYPES.includes(type)) throw new AppError(400, 'Invalid transaction type');
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new AppError(400, 'Date must be in YYYY-MM-DD format');
-  }
+  const date = rawDate as string;
+  validateDate(date);
 
   const isTrade = type === 'buy' || type === 'sell';
   if (isTrade) {
-    if (!ticker || typeof ticker !== 'string') throw new AppError(400, 'Valid ticker is required');
+    if (!rawTicker || typeof rawTicker !== 'string') throw new AppError(400, 'Valid ticker is required');
     if (typeof shares !== 'number' || shares <= 0) throw new AppError(400, 'Shares must be a positive number');
     if (typeof price !== 'number' || price <= 0) throw new AppError(400, 'Price must be a positive number');
   } else {
     if (typeof amount !== 'number' || amount <= 0) throw new AppError(400, 'Amount must be a positive number');
-    if (type === 'dividend' && ticker != null && typeof ticker !== 'string') {
+    if (type === 'dividend' && rawTicker != null && typeof rawTicker !== 'string') {
       throw new AppError(400, 'Ticker must be a string');
     }
   }
+
+  const ticker = rawTicker ? rawTicker.trim().toUpperCase() : null;
+  if (ticker && !TICKER_RE.test(ticker)) throw new AppError(400, 'Ticker format is invalid');
 
   const transaction = transactionService.addTransaction(portfolioId, {
     type,

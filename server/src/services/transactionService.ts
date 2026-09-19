@@ -36,7 +36,7 @@ export function addTransaction(portfolioId: number, input: NewTransactionInput):
     }
   }
 
-  const ticker = input.ticker ? input.ticker.toUpperCase() : null;
+  const ticker = input.ticker ?? null;
   const result = db
     .prepare(
       'INSERT INTO transactions (portfolio_id, type, ticker, shares, price, amount, date) VALUES (?, ?, ?, ?, ?, ?, ?)',
