@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as portfolioService from '../services/portfolioService.js';
 import * as holdingsEnrichment from '../services/holdingsEnrichment.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { analysisGuard, releaseAnalysisLock } from '../middleware/analysisGuard.js';
+import { analysisGuard, withAnalysisLock } from '../middleware/analysisGuard.js';
 import * as analysisService from '../services/analysisService.js';
 
 const router = Router();
@@ -66,14 +66,11 @@ router.get('/:id/analysis', (req, res) => {
   res.json(analysisService.getAnalysis(id));
 });
 
-router.post('/:id/analysis', analysisGuard, async (req, res) => {
-  const id = parseInt(req.params.id);
-  try {
-    const analysis = await analysisService.generateAnalysis(id);
-    res.json(analysis);
-  } finally {
-    releaseAnalysisLock(id);
-  }
+router.post('/:id/analysis', analysisGuard, async (_req, res) => {
+  const analysis = await withAnalysisLock(res, () =>
+    analysisService.generateAnalysis(res.locals.analysisPortfolioId as number),
+  );
+  res.json(analysis);
 });
 
 export default router;

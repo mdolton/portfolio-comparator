@@ -13,8 +13,11 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
 app.use(hostValidation);
-app.use(auth);
 app.use(express.json());
+
+// Auth is scoped to /api so static files and the SPA fallback remain accessible
+// without credentials when AUTH_TOKEN is set.
+app.use('/api', auth);
 
 app.use('/api/portfolios', portfolioRoutes);
 app.use('/api', transactionRoutes);

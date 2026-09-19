@@ -8,6 +8,8 @@ services:
     environment:
       - NODE_ENV=production
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-}
     restart: unless-stopped
 
 volumes:

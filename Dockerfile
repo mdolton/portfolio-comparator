@@ -7,6 +7,8 @@ RUN npm ci
 COPY tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.ts index.html ./
 COPY src/ src/
 COPY public/ public/
+ARG VITE_AUTH_TOKEN
+ENV VITE_AUTH_TOKEN=${VITE_AUTH_TOKEN}
 RUN npm run build
 
 # Stage 2: Compile server native dependencies (better-sqlite3)

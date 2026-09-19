@@ -1,5 +1,8 @@
 const BASE = '/api';
 
+/** Token injected at build time via VITE_AUTH_TOKEN for authenticated deployments. */
+const AUTH_TOKEN = import.meta.env.VITE_AUTH_TOKEN as string | undefined;
+
 class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -9,10 +12,19 @@ class ApiError extends Error {
   }
 }
 
+function buildHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...extra };
+  if (AUTH_TOKEN) {
+    headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+  }
+  return headers;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const { headers: extraHeaders, ...rest } = options ?? {};
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
+    ...rest,
+    headers: buildHeaders(extraHeaders as Record<string, string> | undefined),
   });
 
   if (!res.ok) {

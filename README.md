@@ -17,8 +17,11 @@ A full-stack web application for tracking and comparing investment portfolios. R
 | Variable | Required for | Description |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | AI analysis feature | Anthropic API key. Without it the rest of the app works; only the **Generate Analysis** button on the portfolio detail page will fail. |
+| `AUTH_TOKEN` | Optional auth | When set, all API requests must include `Authorization: Bearer <token>`. Leave unset for open access during development. |
+| `ALLOWED_HOSTS` | Optional host restriction | Comma-separated list of allowed Host header values (e.g. `portfolio.example.com`). Defaults to `localhost`, `127.0.0.1`, `::1` for development. |
+| `VITE_AUTH_TOKEN` | Optional frontend auth | Build-time arg that embeds the bearer token into the frontend bundle so the UI can authenticate. Must match `AUTH_TOKEN`. Pass via `--build-arg VITE_AUTH_TOKEN=...` when building. |
 
-In development, set it inline when starting the backend:
+In development, set them inline when starting the backend:
 
 ```sh
 ANTHROPIC_API_KEY=sk-ant-... npm run dev

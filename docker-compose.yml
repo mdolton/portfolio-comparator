@@ -1,12 +1,17 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_AUTH_TOKEN: ${VITE_AUTH_TOKEN:-}
     ports:
       - "3001:3001"
     volumes:
       - ./server/data:/app/server/data
     environment:
       - NODE_ENV=production
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-}
 
 #volumes:
 #  portfolio-data:
