@@ -36,7 +36,15 @@
       "Bash(xdg-open:*)",
       "Bash(node --version:*)",
       "Bash(docker compose up:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(git -C /Users/mdolton/dev/portfolio-comparator add src/components/AnalysisPanel.tsx)",
+      "Bash(git -C /Users/mdolton/dev/portfolio-comparator commit -m \"Add AnalysisPanel component\")",
+      "Bash(git checkout *)",
+      "Bash(gh pr *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git branch *)",
+      "Skill(commit-commands:commit-push-pr)"
     ]
   }
 }
