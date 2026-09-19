@@ -7,14 +7,16 @@ import marketRoutes from './routes/market.js';
 import performanceRoutes from './routes/performance.js';
 import { authMiddleware } from './middleware/auth.js';
 import { hostValidationMiddleware } from './middleware/hostValidation.js';
+import { crossSiteGuard } from './middleware/crossSiteGuard.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
 app.use(hostValidationMiddleware);
-app.use(authMiddleware);
+app.use(crossSiteGuard);
 app.use(express.json());
+app.use('/api', authMiddleware);
 
 app.use('/api/portfolios', portfolioRoutes);
 app.use('/api', transactionRoutes);

@@ -4,11 +4,14 @@ import { AppError } from '../middleware/errorHandler.js';
 import * as portfolioService from './portfolioService.js';
 import * as transactionService from './transactionService.js';
 import * as holdingsEnrichment from './holdingsEnrichment.js';
-import { startAnalysis, endAnalysis } from '../middleware/analysisGuard.js';
+import { checkAndSetAnalysis } from '../middleware/analysisGuard.js';
 import type { PortfolioAnalysis } from '../../../shared/types.js';
 
 const MODEL = 'claude-sonnet-4-6';
 
+// Generous ceiling so the full 4-section analysis is never truncated mid-sentence.
+// Output is billed per token actually generated, so a high cap costs nothing for
+// the typical short analysis; it just removes the cliff that cut responses off.
 const MAX_TOKENS = 8000;
 
 const SYSTEM_PROMPT = `You are an experienced portfolio analyst. Given a user's portfolio data and their notes (which may contain their investment thesis), produce a clear, grounded analysis. Take the user's stated thesis seriously and reference it explicitly. Be concrete: name specific holdings when discussing strengths, risks, or suggestions. Reason about position sizing, concentration, recent transaction activity, and how the holdings align with the stated thesis. Treat the cash balance as a position: weigh cash allocation (uninvested dry powder), and account for deposits, withdrawals, and dividend income. A negative cash balance indicates margin/borrowing.
@@ -33,9 +36,14 @@ export function getAnalysis(portfolioId: number): PortfolioAnalysis | null {
 }
 
 export async function generateAnalysis(portfolioId: number): Promise<PortfolioAnalysis> {
-  startAnalysis(portfolioId);
+  const id = parseInt(String(portfolioId), 10);
+  if (Number.isNaN(id)) {
+    throw new AppError(400, 'Invalid portfolio ID');
+  }
+  
+  checkAndSetAnalysis(id);
   try {
-    const portfolio = portfolioService.getPortfolioById(portfolioId);
+    const portfolio = portfolioService.getPortfolioById(id);
     if (!portfolio) throw new AppError(404, 'Portfolio not found');
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -43,8 +51,8 @@ export async function generateAnalysis(portfolioId: number): Promise<PortfolioAn
       throw new AppError(500, 'ANTHROPIC_API_KEY not configured on server');
     }
 
-    const enriched = await holdingsEnrichment.getEnrichedHoldings(portfolioId);
-    const transactions = transactionService.getTransactionsByPortfolio(portfolioId);
+    const enriched = await holdingsEnrichment.getEnrichedHoldings(id);
+    const transactions = transactionService.getTransactionsByPortfolio(id);
 
     const userPayload = {
       notes: portfolio.notes ?? '',
@@ -99,6 +107,9 @@ export async function generateAnalysis(portfolioId: number): Promise<PortfolioAn
       throw new AppError(502, 'Claude returned an empty response');
     }
 
+    // Never persist a silently-truncated analysis. With MAX_TOKENS this should
+    // effectively never fire, but if it does, fail loudly so the user can retry
+    // rather than seeing an analysis that stops mid-sentence.
     if (response.stop_reason === 'max_tokens') {
       throw new AppError(
         502,
@@ -113,10 +124,8 @@ export async function generateAnalysis(portfolioId: number): Promise<PortfolioAn
          content = excluded.content,
          model = excluded.model,
          generated_at = datetime('now')`,
-    ).run(portfolioId, content, MODEL);
+    ).run(id, content, MODEL);
 
-    return getAnalysis(portfolioId)!;
-  } finally {
-    endAnalysis(portfolioId);
+    return getAnalysis(id)!;
   }
 }

@@ -1,28 +1,15 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from './errorHandler.js';
 
-const activeAnalyses = new Map<number, boolean>();
+const activeAnalyses = new Set<number>();
 
-export function isInFlight(portfolioId: number): boolean {
+export function isAnalysisActive(portfolioId: number): boolean {
   return activeAnalyses.has(portfolioId);
 }
 
-export function startAnalysis(portfolioId: number): void {
-  activeAnalyses.set(portfolioId, true);
-}
-
-export function endAnalysis(portfolioId: number): void {
-  activeAnalyses.delete(portfolioId);
-}
-
-export function analysisGuard(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
-  const id = parseInt(req.params.id);
-  if (isInFlight(id)) {
+export function checkAndSetAnalysis(portfolioId: number): void {
+  if (activeAnalyses.has(portfolioId)) {
     throw new AppError(409, 'Analysis is already in progress for this portfolio');
   }
-  next();
+  activeAnalyses.add(portfolioId);
 }

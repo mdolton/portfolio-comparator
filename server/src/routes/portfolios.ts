@@ -3,7 +3,6 @@ import * as portfolioService from '../services/portfolioService.js';
 import * as holdingsEnrichment from '../services/holdingsEnrichment.js';
 import { AppError } from '../middleware/errorHandler.js';
 import * as analysisService from '../services/analysisService.js';
-import { analysisGuard } from '../middleware/analysisGuard.js';
 
 const router = Router();
 
@@ -66,9 +65,8 @@ router.get('/:id/analysis', (req, res) => {
   res.json(analysisService.getAnalysis(id));
 });
 
-router.post('/:id/analysis', analysisGuard, async (req, res) => {
-  const id = parseInt(req.params.id);
-  const analysis = await analysisService.generateAnalysis(id);
+router.post('/:id/analysis', async (req, res) => {
+  const analysis = await analysisService.generateAnalysis(req.params.id);
   res.json(analysis);
 });
 
