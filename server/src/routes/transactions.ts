@@ -2,16 +2,18 @@ import { Router } from 'express';
 import * as transactionService from '../services/transactionService.js';
 import * as portfolioService from '../services/portfolioService.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { isValidISODate, latestLocalToday } from '../utils/dates.js';
 
 const router = Router();
 
-const DATE_RE = /^(\d{4})-(0[1-9]|1[012])-(0[1-9]|[12]\d|3[01])$/;
-const TICKER_RE = /^[A-Z0-9.]{1,10}$/;
+// Yahoo Finance symbols: class shares (BRK-B), indices (^GSPC), FX/futures (EURUSD=X).
+const TICKER_RE = /^[A-Z0-9.\-^=]{1,15}$/;
 
-function validateDate(dateStr: string): void {
-  if (!DATE_RE.test(dateStr)) throw new AppError(400, 'Date must be in YYYY-MM-DD format');
-  const date = new Date(dateStr);
-  if (date > new Date()) throw new AppError(400, 'Date cannot be in the future');
+function validateDate(date: unknown): asserts date is string {
+  if (!isValidISODate(date)) throw new AppError(400, 'Date must be a valid YYYY-MM-DD date');
+  // Compare calendar days, not instants: the client sends its local date, which
+  // can be a day ahead of the server's UTC date.
+  if (date > latestLocalToday()) throw new AppError(400, 'Date cannot be in the future');
 }
 
 const TYPES = ['buy', 'sell', 'deposit', 'withdrawal', 'dividend'] as const;
@@ -32,10 +34,9 @@ router.post('/portfolios/:id/transactions', (req, res) => {
   const portfolio = portfolioService.getPortfolioById(portfolioId);
   if (!portfolio) throw new AppError(404, 'Portfolio not found');
 
-  const { type, ticker: rawTicker, shares, price, amount, date: rawDate } = req.body;
+  const { type, ticker: rawTicker, shares, price, amount, date } = req.body;
 
   if (!TYPES.includes(type)) throw new AppError(400, 'Invalid transaction type');
-  const date = rawDate as string;
   validateDate(date);
 
   const isTrade = type === 'buy' || type === 'sell';
@@ -50,13 +51,17 @@ router.post('/portfolios/:id/transactions', (req, res) => {
     }
   }
 
-  const ticker = rawTicker ? rawTicker.trim().toUpperCase() : null;
-  if (ticker && !TICKER_RE.test(ticker)) throw new AppError(400, 'Ticker format is invalid');
+  // Ticker only applies to trades and (optionally) dividends; ignore it otherwise.
+  const usesTicker = isTrade || type === 'dividend';
+  const ticker = usesTicker && rawTicker ? transactionService.normalizeTicker(rawTicker) : null;
+  if (usesTicker && rawTicker && (!ticker || !TICKER_RE.test(ticker))) {
+    throw new AppError(400, 'Ticker format is invalid');
+  }
 
   const transaction = transactionService.addTransaction(portfolioId, {
     type,
     date,
-    ticker: isTrade || (type === 'dividend' && ticker) ? ticker : null,
+    ticker,
     shares: isTrade ? shares : null,
     price: isTrade ? price : null,
     amount: isTrade ? null : amount,

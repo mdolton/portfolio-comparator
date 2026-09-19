@@ -1,7 +1,7 @@
 import * as transactionService from './transactionService.js';
 import * as portfolioService from './portfolioService.js';
 import * as marketService from './marketService.js';
-import { cashDelta, externalCashFlow, timeWeightedReturnSeries, type DailyValuePoint } from './portfolioMath.js';
+import { PortfolioAccumulator, timeWeightedReturnSeries, type DailyValuePoint } from './portfolioMath.js';
 import type { PerformancePoint, PerformanceResponse } from '../../../shared/types.js';
 
 function generateDateRange(start: string, end: string): string[] {
@@ -72,18 +72,14 @@ export async function getPerformanceData(
   // Per-portfolio daily value+flow arrays feed the growth (TWR) series.
   const dailyByPortfolio = new Map<string, DailyValuePoint[]>();
 
-  // Incremental computation state — avoids re-filtering/re-sorting all
-  // transactions from scratch every day (O(n·d) → O(n)).
-  const runningHoldings = new Map<string, Map<string, number>>();
-  const runningCash = new Map<string, number>();
-  const txCursor = new Map<string, number>();
+  // One accumulator per portfolio walks its transactions once across the
+  // whole range, instead of re-filtering them from scratch every day.
+  const accumulators = new Map<string, PortfolioAccumulator>();
 
-  for (const { portfolio } of portfolioData) {
+  for (const { portfolio, transactions } of portfolioData) {
     if (portfolio) {
       dailyByPortfolio.set(portfolio.name, []);
-      runningHoldings.set(portfolio.name, new Map());
-      runningCash.set(portfolio.name, 0);
-      txCursor.set(portfolio.name, 0);
+      accumulators.set(portfolio.name, new PortfolioAccumulator(transactions));
     }
   }
 
@@ -97,47 +93,17 @@ export async function getPerformanceData(
 
     const point: PerformancePoint = { date };
 
-    for (const { portfolio, transactions } of portfolioData) {
+    for (const { portfolio } of portfolioData) {
       if (!portfolio) continue;
 
-      const holdings = runningHoldings.get(portfolio.name)!;
-      let cash = runningCash.get(portfolio.name)!;
-      let flow = 0;
-      let cursor = txCursor.get(portfolio.name)!;
+      const { value, flow, hasActivity } = accumulators.get(portfolio.name)!.advanceTo(date, lastKnownPrice);
 
-      // Advance through transactions in date order, updating running state once.
-      while (cursor < transactions.length && transactions[cursor].date <= date) {
-        const tx = transactions[cursor];
+      // TWR chains the unrounded value; only the plotted value is rounded.
+      dailyByPortfolio.get(portfolio.name)!.push({ date, value, flow });
 
-        if ((tx.type === 'buy' || tx.type === 'sell') && tx.ticker && tx.shares != null) {
-          const current = holdings.get(tx.ticker) ?? 0;
-          holdings.set(tx.ticker, tx.type === 'buy' ? current + tx.shares : current - tx.shares);
-        }
-
-        cash += cashDelta(tx);
-
-        if (tx.date === date) {
-          flow += externalCashFlow(tx);
-        }
-
-        cursor++;
-      }
-      txCursor.set(portfolio.name, cursor);
-      runningCash.set(portfolio.name, cash);
-
-      // Value = priced securities + cash balance
-      let value = cash;
-      for (const [ticker, shares] of holdings) {
-        if (shares < 1e-9) continue;
-        const price = lastKnownPrice.get(ticker);
-        if (price !== undefined) value += shares * price;
-      }
-
-      const rounded = Math.round(value * 100) / 100;
-      dailyByPortfolio.get(portfolio.name)!.push({ date, value: rounded, flow });
-
-      if (cursor > 0) {
-        point[portfolio.name] = rounded;
+      // Value series: only plot once the portfolio has any activity by this date.
+      if (hasActivity) {
+        point[portfolio.name] = Math.round(value * 100) / 100;
       }
     }
 

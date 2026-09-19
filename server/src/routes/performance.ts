@@ -1,22 +1,17 @@
 import { Router } from 'express';
 import * as performanceService from '../services/performanceService.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { isValidISODate, daysBetween } from '../utils/dates.js';
 
 const router = Router();
 
-const DATE_RE = /^(\d{4})-(0[1-9]|1[012])-(0[1-9]|[12]\d|3[01])$/;
 const MAX_RANGE_DAYS = 3653; // ~10 years
 
-function validateDateRange(start: string, end: string): void {
-  if (!DATE_RE.test(start)) throw new AppError(400, 'Start date must be in YYYY-MM-DD format');
-  if (!DATE_RE.test(end)) throw new AppError(400, 'End date must be in YYYY-MM-DD format');
-
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-  if (startDate > endDate) throw new AppError(400, 'Start date must not be after end date');
-
-  const diffDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-  if (diffDays > MAX_RANGE_DAYS) throw new AppError(400, 'Date range must not exceed 10 years');
+function validateDateRange(start: unknown, end: unknown): void {
+  if (!isValidISODate(start)) throw new AppError(400, 'Start date must be a valid YYYY-MM-DD date');
+  if (!isValidISODate(end)) throw new AppError(400, 'End date must be a valid YYYY-MM-DD date');
+  if (start > end) throw new AppError(400, 'Start date must not be after end date');
+  if (daysBetween(start, end) > MAX_RANGE_DAYS) throw new AppError(400, 'Date range must not exceed 10 years');
 }
 
 router.get('/', async (req, res) => {

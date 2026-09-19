@@ -18,14 +18,21 @@ export interface NewTransactionInput {
   date: string;
 }
 
+/** Canonical ticker form. Holdings, share-balance checks and price lookups all
+ *  key on the exact string, so every stored ticker must pass through this. */
+export function normalizeTicker(ticker: string): string {
+  return ticker.trim().toUpperCase();
+}
+
 export function addTransaction(portfolioId: number, input: NewTransactionInput): Transaction {
+  const ticker = input.ticker ? normalizeTicker(input.ticker) : null;
   const isTrade = input.type === 'buy' || input.type === 'sell';
 
   if (isTrade) {
     const existing = getTransactionsByPortfolio(portfolioId);
     const proposed = [
       ...existing,
-      { type: input.type, ticker: input.ticker ?? null, shares: input.shares ?? null, date: input.date },
+      { type: input.type, ticker, shares: input.shares ?? null, date: input.date },
     ];
     const violation = negativeShareViolation(proposed);
     if (violation) {
@@ -36,7 +43,6 @@ export function addTransaction(portfolioId: number, input: NewTransactionInput):
     }
   }
 
-  const ticker = input.ticker ?? null;
   const result = db
     .prepare(
       'INSERT INTO transactions (portfolio_id, type, ticker, shares, price, amount, date) VALUES (?, ?, ?, ?, ?, ?, ?)',

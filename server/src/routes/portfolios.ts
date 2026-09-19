@@ -52,7 +52,7 @@ router.patch('/:id', (req, res) => {
   const existing = portfolioService.getPortfolioById(id);
   if (!existing) throw new AppError(404, 'Portfolio not found');
 
-  const portfolio = portfolioService.updatePortfolio(id, { notes: notes?.trim() });
+  const portfolio = portfolioService.updatePortfolio(id, { notes });
   res.json(portfolio);
 });
 

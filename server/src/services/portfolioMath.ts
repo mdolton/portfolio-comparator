@@ -99,49 +99,59 @@ export function computeHoldings(txs: Transaction[]): Holding[] {
   return holdings;
 }
 
-/** Share balances per ticker from trades dated on/before `date`. */
-export function holdingsAtDate(txs: Transaction[], date: string): Map<string, number> {
-  const holdings = new Map<string, number>();
-
-  const relevant = txs
-    .filter(
-      (tx) =>
-        (tx.type === 'buy' || tx.type === 'sell') &&
-        tx.date <= date &&
-        !!tx.ticker &&
-        tx.shares != null,
-    )
-    .sort((a, b) => {
-      const dateCmp = a.date.localeCompare(b.date);
-      if (dateCmp !== 0) return dateCmp;
-      if (a.type === 'buy' && b.type === 'sell') return -1;
-      if (a.type === 'sell' && b.type === 'buy') return 1;
-      return 0;
-    });
-
-  for (const tx of relevant) {
-    const current = holdings.get(tx.ticker!) ?? 0;
-    holdings.set(tx.ticker!, tx.type === 'buy' ? current + tx.shares! : current - tx.shares!);
-  }
-
-  for (const [ticker, shares] of holdings) {
-    if (shares < 1e-9) holdings.delete(ticker);
-  }
-  return holdings;
+/** A portfolio's state at the end of one day, from `PortfolioAccumulator.advanceTo`. */
+export interface DailySnapshot {
+  /** Priced securities + cash balance. Unrounded, so it is safe to chain into TWR. */
+  value: number;
+  /** External cash flow (deposits − withdrawals) dated exactly this day. */
+  flow: number;
+  /** True once any transaction is dated on/before this day. */
+  hasActivity: boolean;
 }
 
-/** Portfolio value at a date: priced securities + cash balance at that date. */
-export function portfolioValueAtDate(
-  txs: Transaction[],
-  pricesAtDate: Map<string, number>,
-  date: string,
-): number {
-  let value = 0;
-  for (const [ticker, shares] of holdingsAtDate(txs, date)) {
-    const price = pricesAtDate.get(ticker);
-    if (price !== undefined) value += shares * price;
+/** Walks a portfolio's transactions once while a caller steps through
+ *  ascending dates, so a d-day series costs O(n + d) rather than O(n·d).
+ *  Transactions are sorted here; callers need not pre-sort them. */
+export class PortfolioAccumulator {
+  private readonly sorted: Transaction[];
+  private readonly holdings = new Map<string, number>();
+  private cash = 0;
+  private cursor = 0;
+  private lastDate = '';
+
+  constructor(txs: Transaction[]) {
+    this.sorted = [...txs].sort((a, b) => a.date.localeCompare(b.date));
   }
-  return value + computeCashBalance(txs, date);
+
+  /** Apply every transaction dated on/before `date` and value the portfolio
+   *  with `pricesAtDate`; securities with no known price are skipped.
+   *  Dates must be passed in ascending order. */
+  advanceTo(date: string, pricesAtDate: Map<string, number>): DailySnapshot {
+    if (date < this.lastDate) {
+      throw new Error(`PortfolioAccumulator dates must ascend: ${date} after ${this.lastDate}`);
+    }
+    this.lastDate = date;
+
+    let flow = 0;
+    while (this.cursor < this.sorted.length && this.sorted[this.cursor].date <= date) {
+      const tx = this.sorted[this.cursor++];
+      if ((tx.type === 'buy' || tx.type === 'sell') && tx.ticker && tx.shares != null) {
+        const current = this.holdings.get(tx.ticker) ?? 0;
+        this.holdings.set(tx.ticker, tx.type === 'buy' ? current + tx.shares : current - tx.shares);
+      }
+      this.cash += cashDelta(tx);
+      if (tx.date === date) flow += externalCashFlow(tx);
+    }
+
+    let value = this.cash;
+    for (const [ticker, shares] of this.holdings) {
+      if (shares < 1e-9) continue;
+      const price = pricesAtDate.get(ticker);
+      if (price !== undefined) value += shares * price;
+    }
+
+    return { value, flow, hasActivity: this.cursor > 0 };
+  }
 }
 
 /** Cumulative time-weighted return (%) per date. Chains daily growth factors,
