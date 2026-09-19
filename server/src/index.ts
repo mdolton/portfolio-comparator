@@ -1,17 +1,19 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
-import cors from 'cors';
 import portfolioRoutes from './routes/portfolios.js';
 import transactionRoutes from './routes/transactions.js';
 import marketRoutes from './routes/market.js';
 import performanceRoutes from './routes/performance.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { auth } from './middleware/auth.js';
+import { hostValidation } from './middleware/hostValidation.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
-app.use(cors());
+app.use(hostValidation);
+app.use(auth);
 app.use(express.json());
 
 app.use('/api/portfolios', portfolioRoutes);
