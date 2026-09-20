@@ -12,7 +12,7 @@ dist
 dist-ssr
 *.local
 
-# Claude Code local settings (settings.json stays tracked)
+# Claude Code local settings
 .claude/settings.local.json
 
 # Database

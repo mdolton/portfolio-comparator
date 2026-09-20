@@ -19,6 +19,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install server dependencies
+        run: npm ci --prefix server
+
       - name: Lint
         run: npm run lint
 
@@ -27,3 +30,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Type-check server
+        run: npx tsc -p server/tsconfig.json

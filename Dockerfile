@@ -24,8 +24,11 @@ COPY --from=server-deps /app/server/node_modules node_modules
 COPY --from=frontend-builder /app/dist ../dist/
 COPY server/src/ src/
 COPY shared/ ../shared/
-RUN mkdir -p data && chown node:node data
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN apk add --no-cache su-exec \
+ && chmod +x /usr/local/bin/docker-entrypoint.sh \
+ && mkdir -p data && chown node:node data
 EXPOSE 3001
 ENV NODE_ENV=production
-USER node
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "--import", "tsx/esm", "src/index.ts"]
