@@ -20,7 +20,10 @@ type HttpError = Error & { status?: number; statusCode?: number; expose?: boolea
 function clientErrorStatus(err: HttpError): number | null {
   const status = typeof err.status === 'number' ? err.status : err.statusCode;
   if (typeof status !== 'number' || status < 400 || status >= 500) return null;
-  return err.expose === true ? status : null;
+  // Express's router tags malformed percent-encoding in a route param (a
+  // URIError) with status 400 but, unlike http-errors, never sets `expose`.
+  if (err.expose === true || err instanceof URIError) return status;
+  return null;
 }
 
 export function errorHandler(
@@ -35,7 +38,8 @@ export function errorHandler(
     return;
   }
 
-  // Client errors from middleware (malformed JSON, oversized bodies).
+  // Client errors from the framework (malformed JSON, oversized bodies,
+  // undecodable route params).
   const status = clientErrorStatus(err);
   if (status !== null) {
     res.status(status).json({ error: err.message });
