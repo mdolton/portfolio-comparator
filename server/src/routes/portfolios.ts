@@ -44,6 +44,11 @@ router.patch('/:id', (req, res) => {
   const id = parseInt(req.params.id);
   const { notes } = req.body;
 
+  if (notes !== undefined) {
+    if (typeof notes !== 'string') throw new AppError(400, 'Notes must be a string');
+    if (notes.length > 10000) throw new AppError(400, 'Notes must not exceed 10,000 characters');
+  }
+
   const existing = portfolioService.getPortfolioById(id);
   if (!existing) throw new AppError(404, 'Portfolio not found');
 

@@ -1,13 +1,8 @@
 import * as transactionService from './transactionService.js';
 import * as portfolioService from './portfolioService.js';
 import * as marketService from './marketService.js';
+import { PortfolioAccumulator, timeWeightedReturnSeries, type DailyValuePoint } from './portfolioMath.js';
 import type { PerformancePoint, PerformanceResponse } from '../../../shared/types.js';
-import {
-  portfolioValueAtDate,
-  externalCashFlow,
-  timeWeightedReturnSeries,
-  type DailyValuePoint,
-} from './portfolioMath.js';
 
 function generateDateRange(start: string, end: string): string[] {
   const dates: string[] = [];
@@ -44,14 +39,12 @@ export async function getPerformanceData(
   startDate: string,
   endDate: string,
 ): Promise<PerformanceResponse> {
-  // Gather all transactions and portfolio info
   const portfolioData = portfolioIds.map((id) => {
     const portfolio = portfolioService.getPortfolioById(id);
     const transactions = transactionService.getTransactionsByPortfolio(id);
     return { portfolio: portfolio!, transactions };
   });
 
-  // Collect all unique tickers across all portfolios
   const allTickers = new Set<string>();
   for (const { transactions } of portfolioData) {
     for (const tx of transactions) {
@@ -61,7 +54,6 @@ export async function getPerformanceData(
     }
   }
 
-  // Fetch historical prices for all tickers
   const pricesByTicker = new Map<string, Map<string, number>>();
   await Promise.all(
     Array.from(allTickers).map(async (ticker) => {
@@ -70,7 +62,6 @@ export async function getPerformanceData(
     }),
   );
 
-  // Generate all dates in range
   const dates = generateDateRange(startDate, endDate);
 
   // Forward-fill prices: for each ticker, track last known price
@@ -78,16 +69,21 @@ export async function getPerformanceData(
 
   const valueResult: PerformancePoint[] = [];
 
-  // Per-portfolio daily value+flow arrays feed the growth (TWR) series. These
-  // span the full date range; leading zero-value days (before the portfolio's
-  // first activity) are trimmed by timeWeightedReturnSeries.
+  // Per-portfolio daily value+flow arrays feed the growth (TWR) series.
   const dailyByPortfolio = new Map<string, DailyValuePoint[]>();
-  for (const { portfolio } of portfolioData) {
-    if (portfolio) dailyByPortfolio.set(portfolio.name, []);
+
+  // One accumulator per portfolio walks its transactions once across the
+  // whole range, instead of re-filtering them from scratch every day.
+  const accumulators = new Map<string, PortfolioAccumulator>();
+
+  for (const { portfolio, transactions } of portfolioData) {
+    if (portfolio) {
+      dailyByPortfolio.set(portfolio.name, []);
+      accumulators.set(portfolio.name, new PortfolioAccumulator(transactions));
+    }
   }
 
   for (const date of dates) {
-    // Update last known prices for this date (forward-fill)
     for (const ticker of allTickers) {
       const tickerPrices = pricesByTicker.get(ticker);
       if (tickerPrices?.has(date)) {
@@ -97,18 +93,16 @@ export async function getPerformanceData(
 
     const point: PerformancePoint = { date };
 
-    for (const { portfolio, transactions } of portfolioData) {
+    for (const { portfolio } of portfolioData) {
       if (!portfolio) continue;
 
-      const value = portfolioValueAtDate(transactions, lastKnownPrice, date);
-      const flow = transactions.reduce(
-        (sum, t) => (t.date === date ? sum + externalCashFlow(t) : sum),
-        0,
-      );
+      const { value, flow, hasActivity } = accumulators.get(portfolio.name)!.advanceTo(date, lastKnownPrice);
+
+      // TWR chains the unrounded value; only the plotted value is rounded.
       dailyByPortfolio.get(portfolio.name)!.push({ date, value, flow });
 
       // Value series: only plot once the portfolio has any activity by this date.
-      if (transactions.some((t) => t.date <= date)) {
+      if (hasActivity) {
         point[portfolio.name] = Math.round(value * 100) / 100;
       }
     }

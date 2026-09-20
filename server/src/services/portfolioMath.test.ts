@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Transaction } from '../../../shared/types.js';
-import { cashDelta, computeCashBalance, computeHoldings, negativeShareViolation, holdingsAtDate, portfolioValueAtDate, externalCashFlow, timeWeightedReturnSeries } from './portfolioMath';
+import { cashDelta, computeCashBalance, computeHoldings, negativeShareViolation, PortfolioAccumulator, externalCashFlow, timeWeightedReturnSeries } from './portfolioMath';
 
 let nextId = 1;
 function tx(partial: Partial<Transaction>): Transaction {
@@ -117,36 +117,85 @@ describe('negativeShareViolation', () => {
   });
 });
 
-describe('holdingsAtDate', () => {
-  it('returns share balances as of a date (inclusive)', () => {
-    const txs = [
-      tx({ type: 'buy', ticker: 'AAPL', shares: 10, price: 100, date: '2024-01-01' }),
-      tx({ type: 'sell', ticker: 'AAPL', shares: 4, price: 110, date: '2024-01-05' }),
-    ];
-    expect(holdingsAtDate(txs, '2024-01-03').get('AAPL')).toBe(10);
-    expect(holdingsAtDate(txs, '2024-01-05').get('AAPL')).toBe(6);
-  });
-});
-
-describe('portfolioValueAtDate', () => {
-  it('adds priced securities to the cash balance at the date', () => {
-    const txs = [
+describe('PortfolioAccumulator', () => {
+  it('values priced securities plus cash as of each date (inclusive)', () => {
+    const acc = new PortfolioAccumulator([
       tx({ type: 'deposit', amount: 1000, date: '2024-01-01' }),
       tx({ type: 'buy', ticker: 'AAPL', shares: 5, price: 100, date: '2024-01-02' }),
-    ];
+      tx({ type: 'sell', ticker: 'AAPL', shares: 2, price: 110, date: '2024-01-05' }),
+    ]);
     const prices = new Map([['AAPL', 120]]);
+    expect(acc.advanceTo('2024-01-01', prices).value).toBe(1000);
     // cash: 1000 - 500 = 500; securities: 5 * 120 = 600
-    expect(portfolioValueAtDate(txs, prices, '2024-01-02')).toBe(1100);
+    expect(acc.advanceTo('2024-01-02', prices).value).toBe(1100);
+    expect(acc.advanceTo('2024-01-03', prices).value).toBe(1100);
+    // cash: 500 + 220 = 720; securities: 3 * 120 = 360
+    expect(acc.advanceTo('2024-01-05', prices).value).toBe(1080);
   });
 
   it('skips securities with no known price but still counts cash', () => {
-    const txs = [
+    const acc = new PortfolioAccumulator([
       tx({ type: 'deposit', amount: 200, date: '2024-01-01' }),
       tx({ type: 'buy', ticker: 'XYZ', shares: 1, price: 50, date: '2024-01-02' }),
-    ];
-    const prices = new Map<string, number>();
+    ]);
     // securities unpriced -> 0; cash: 200 - 50 = 150
-    expect(portfolioValueAtDate(txs, prices, '2024-01-02')).toBe(150);
+    expect(acc.advanceTo('2024-01-02', new Map()).value).toBe(150);
+  });
+
+  it('reports external flow only on the day it occurs', () => {
+    const acc = new PortfolioAccumulator([
+      tx({ type: 'deposit', amount: 1000, date: '2024-01-01' }),
+      tx({ type: 'dividend', amount: 5, date: '2024-01-02' }),
+      tx({ type: 'withdrawal', amount: 300, date: '2024-01-02' }),
+    ]);
+    const prices = new Map<string, number>();
+    expect(acc.advanceTo('2024-01-01', prices).flow).toBe(1000);
+    expect(acc.advanceTo('2024-01-02', prices).flow).toBe(-300);
+    expect(acc.advanceTo('2024-01-03', prices).flow).toBe(0);
+  });
+
+  it('applies transactions dated before the first requested date without reporting their flow', () => {
+    const acc = new PortfolioAccumulator([tx({ type: 'deposit', amount: 1000, date: '2023-12-01' })]);
+    expect(acc.advanceTo('2024-01-01', new Map())).toEqual({ value: 1000, flow: 0, hasActivity: true });
+  });
+
+  it('has no activity before the first transaction', () => {
+    const acc = new PortfolioAccumulator([tx({ type: 'deposit', amount: 1000, date: '2024-01-05' })]);
+    expect(acc.advanceTo('2024-01-01', new Map())).toEqual({ value: 0, flow: 0, hasActivity: false });
+    expect(acc.advanceTo('2024-01-05', new Map()).hasActivity).toBe(true);
+  });
+
+  it('does not depend on the input order of transactions', () => {
+    const acc = new PortfolioAccumulator([
+      tx({ type: 'buy', ticker: 'AAPL', shares: 5, price: 100, date: '2024-01-03' }),
+      tx({ type: 'deposit', amount: 1000, date: '2024-01-01' }),
+    ]);
+    const prices = new Map([['AAPL', 100]]);
+    expect(acc.advanceTo('2024-01-01', prices)).toEqual({ value: 1000, flow: 1000, hasActivity: true });
+    expect(acc.advanceTo('2024-01-03', prices).value).toBe(1000);
+  });
+
+  it('does not round values', () => {
+    const acc = new PortfolioAccumulator([
+      tx({ type: 'deposit', amount: 1, date: '2024-01-01' }),
+      tx({ type: 'buy', ticker: 'AAPL', shares: 0.001, price: 1000, date: '2024-01-01' }),
+    ]);
+    expect(acc.advanceTo('2024-01-01', new Map([['AAPL', 1001.234]])).value).toBeCloseTo(1.001234, 9);
+  });
+
+  it('ignores fully sold positions', () => {
+    const acc = new PortfolioAccumulator([
+      tx({ type: 'buy', ticker: 'AAPL', shares: 0.3, price: 10, date: '2024-01-01' }),
+      tx({ type: 'sell', ticker: 'AAPL', shares: 0.1, price: 10, date: '2024-01-02' }),
+      tx({ type: 'sell', ticker: 'AAPL', shares: 0.2, price: 10, date: '2024-01-02' }),
+    ]);
+    expect(acc.advanceTo('2024-01-02', new Map([['AAPL', 1e12]])).value).toBeCloseTo(0, 6);
+  });
+
+  it('throws if dates go backwards', () => {
+    const acc = new PortfolioAccumulator([]);
+    acc.advanceTo('2024-01-02', new Map());
+    expect(() => acc.advanceTo('2024-01-01', new Map())).toThrow(/ascend/);
   });
 });
 
