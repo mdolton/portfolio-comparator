@@ -19,6 +19,11 @@ app.use('/api', transactionRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/performance', performanceRoutes);
 
+// Unmatched API routes get a JSON 404 instead of the SPA fallback
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
 if (process.env.NODE_ENV === 'production') {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const distPath = path.join(__dirname, '../../dist');

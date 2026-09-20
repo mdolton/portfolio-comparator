@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Claude Code local settings (settings.json stays tracked)
+.claude/settings.local.json
+
 # Database
 server/data/*.db
 server/data/*.db-wal

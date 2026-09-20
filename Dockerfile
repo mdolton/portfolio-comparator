@@ -24,7 +24,8 @@ COPY --from=server-deps /app/server/node_modules node_modules
 COPY --from=frontend-builder /app/dist ../dist/
 COPY server/src/ src/
 COPY shared/ ../shared/
-RUN mkdir -p data
+RUN mkdir -p data && chown node:node data
 EXPOSE 3001
 ENV NODE_ENV=production
+USER node
 CMD ["node", "--import", "tsx/esm", "src/index.ts"]
