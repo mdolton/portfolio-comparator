@@ -25,11 +25,6 @@ apiRouter.use((_req, _res, next) => next(new AppError(404, 'Not found')));
 
 app.use('/api', apiRouter);
 
-// Unmatched API routes get a JSON 404 instead of the SPA fallback
-app.use('/api', (_req, res) => {
-  res.status(404).json({ error: 'Not found' });
-});
-
 if (process.env.NODE_ENV === 'production') {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const distPath = path.join(__dirname, '../../dist');
