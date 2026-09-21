@@ -19,12 +19,17 @@ RUN npm ci
 # Stage 3: Production
 FROM node:22-alpine
 WORKDIR /app/server
+# Install before the COPY layers so source edits don't re-fetch packages
+RUN apk add --no-cache su-exec
 COPY server/package.json package.json
 COPY --from=server-deps /app/server/node_modules node_modules
 COPY --from=frontend-builder /app/dist ../dist/
 COPY server/src/ src/
 COPY shared/ ../shared/
-RUN mkdir -p data
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+ && mkdir -p data && chown node:node data
 EXPOSE 3001
 ENV NODE_ENV=production
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "--import", "tsx/esm", "src/index.ts"]

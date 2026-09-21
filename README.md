@@ -104,6 +104,8 @@ REGISTRY=ghcr.io/myuser docker compose -f docker-compose.prod.yml up -d
 
 The app will be available on port 3001. SQLite data is persisted in a named Docker volume (`portfolio-data`).
 
+The container starts as root only to sort out ownership of the data directory, then drops privileges before starting the server. It runs as the owner of `/app/server/data`: with the bind mount in `docker-compose.yml` that is your host user, so files in `server/data` stay yours; a root-owned directory (such as a volume written by an older image) is handed to the unprivileged `node` user.
+
 ## API Endpoints
 
 | Method | Endpoint | Description |

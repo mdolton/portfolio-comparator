@@ -6,7 +6,7 @@ import portfolioRoutes from './routes/portfolios.js';
 import transactionRoutes from './routes/transactions.js';
 import marketRoutes from './routes/market.js';
 import performanceRoutes from './routes/performance.js';
-import { errorHandler } from './middleware/errorHandler.js';
+import { AppError, errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -14,10 +14,16 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/portfolios', portfolioRoutes);
-app.use('/api', transactionRoutes);
-app.use('/api/market', marketRoutes);
-app.use('/api/performance', performanceRoutes);
+// All API routers mount on apiRouter; its catch-all 404 must stay the last
+// mount so unmatched /api routes get JSON instead of the SPA fallback.
+const apiRouter = express.Router();
+apiRouter.use('/portfolios', portfolioRoutes);
+apiRouter.use('/', transactionRoutes);
+apiRouter.use('/market', marketRoutes);
+apiRouter.use('/performance', performanceRoutes);
+apiRouter.use((_req, _res, next) => next(new AppError(404, 'Not found')));
+
+app.use('/api', apiRouter);
 
 if (process.env.NODE_ENV === 'production') {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
