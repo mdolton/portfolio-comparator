@@ -1,5 +1,5 @@
 # Stage 1: Build React frontend
-FROM node:22-alpine AS frontend-builder
+FROM node:25-alpine AS frontend-builder
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY shared/ shared/
@@ -10,14 +10,14 @@ COPY public/ public/
 RUN npm run build
 
 # Stage 2: Compile server native dependencies (better-sqlite3)
-FROM node:22-alpine AS server-deps
+FROM node:25-alpine AS server-deps
 WORKDIR /app/server
 RUN apk add --no-cache python3 make g++
 COPY server/package.json server/package-lock.json ./
 RUN npm ci
 
 # Stage 3: Production
-FROM node:22-alpine
+FROM node:25-alpine
 WORKDIR /app/server
 # Install before the COPY layers so source edits don't re-fetch packages
 RUN apk add --no-cache su-exec
