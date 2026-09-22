@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { useTickerSearch } from '../hooks/useTickerSearch';
 import type { TickerSearchResult } from '@shared/types';
 
@@ -13,9 +13,17 @@ export function TickerSearchInput({ value, onChange }: Props) {
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const { results, loading, search, clear } = useTickerSearch();
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const confirmedRef = useRef(value);
+  const inputId = useId();
+  const listboxId = `${inputId}-listbox`;
 
+  // Sync query from value only when the parent sets a new confirmed ticker.
+  // This prevents onChange('') from erasing what the user is typing.
   useEffect(() => {
-    setQuery(value);
+    if (value !== '' && value !== confirmedRef.current) {
+      setQuery(value);
+      confirmedRef.current = value;
+    }
   }, [value]);
 
   useEffect(() => {
@@ -36,6 +44,7 @@ export function TickerSearchInput({ value, onChange }: Props) {
     (result: TickerSearchResult) => {
       setQuery(result.symbol);
       onChange(result.symbol);
+      confirmedRef.current = result.symbol;
       setShowDropdown(false);
       setHighlightedIndex(-1);
       clear();
@@ -45,12 +54,23 @@ export function TickerSearchInput({ value, onChange }: Props) {
 
   const showHint = query !== '' && query !== value;
 
+  const activeDescendant =
+    showDropdown && highlightedIndex >= 0 && highlightedIndex < results.length
+      ? `${listboxId}-option-${highlightedIndex}`
+      : undefined;
+
   return (
     <div ref={wrapperRef} style={{ position: 'relative' }}>
       <input
+        id={inputId}
         type="text"
         value={query}
         placeholder="Search ticker..."
+        role="combobox"
+        aria-expanded={showDropdown}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
+        aria-activedescendant={activeDescendant}
         style={{ width: '100%' }}
         onChange={(e) => {
           const val = e.target.value.toUpperCase();
@@ -68,27 +88,35 @@ export function TickerSearchInput({ value, onChange }: Props) {
           switch (e.key) {
             case 'ArrowDown':
               e.preventDefault();
-              setHighlightedIndex((prev) =>
-                prev < results.length - 1 ? prev + 1 : 0,
-              );
+              if (!showDropdown) {
+                setShowDropdown(true);
+              } else {
+                setHighlightedIndex((prev) =>
+                  prev < results.length - 1 ? prev + 1 : 0,
+                );
+              }
               break;
             case 'ArrowUp':
               e.preventDefault();
-              setHighlightedIndex((prev) =>
-                prev > 0 ? prev - 1 : results.length - 1,
-              );
+              if (showDropdown) {
+                setHighlightedIndex((prev) =>
+                  prev > 0 ? prev - 1 : results.length - 1,
+                );
+              }
               break;
             case 'Enter':
-              e.preventDefault();
               if (
+                showDropdown &&
                 highlightedIndex >= 0 &&
                 highlightedIndex < results.length
               ) {
+                e.preventDefault();
                 selectResult(results[highlightedIndex]);
               }
               break;
             case 'Escape':
               setShowDropdown(false);
+              setHighlightedIndex(-1);
               break;
           }
         }}
@@ -97,7 +125,7 @@ export function TickerSearchInput({ value, onChange }: Props) {
         <div
           style={{
             fontSize: '0.75rem',
-            color: 'var(--warning)',
+            color: 'var(--danger)',
             marginTop: '0.25rem',
           }}
         >
@@ -106,6 +134,8 @@ export function TickerSearchInput({ value, onChange }: Props) {
       )}
       {showDropdown && (results.length > 0 || loading) && (
         <div
+          id={listboxId}
+          role="listbox"
           style={{
             position: 'absolute',
             top: '100%',
@@ -133,6 +163,7 @@ export function TickerSearchInput({ value, onChange }: Props) {
           {results.map((r, i) => (
             <div
               key={r.symbol}
+              id={`${listboxId}-option-${i}`}
               role="option"
               aria-selected={i === highlightedIndex}
               style={{
